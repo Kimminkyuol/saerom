@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "saerom"
+version = "0.1.0"
+description = "새롬 — 한국어 문법을 따르는 프로그래밍 언어"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Minkyeol Kim" }]
+keywords = ["korean", "programming-language", "interpreter"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: Korean",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Interpreters",
+]
+
+[project.urls]
+Homepage = "https://github.com/kimminkyuol/saerom"
+
+[project.scripts]
+saerom = "saerom.cli:main"
+saerom-lsp = "saerom.lsp:main"
+
+[tool.setuptools]
+packages = ["saerom", "saerom.interp", "saerom.lsp", "saerom.parser"]
+
+[tool.setuptools.package-data]
+saerom = ["stdlib/*.sr"]

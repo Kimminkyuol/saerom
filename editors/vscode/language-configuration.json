@@ -1,0 +1,21 @@
+{
+  "comments": { "lineComment": "#" },
+  "brackets": [["[", "]"]],
+  "autoClosingPairs": [
+    { "open": "[", "close": "]" },
+    { "open": "\"", "close": "\"", "notIn": ["string", "comment"] },
+    { "open": "{", "close": "}", "notIn": ["comment"] }
+  ],
+  "surroundingPairs": [["[", "]"], ["\"", "\""], ["{", "}"]],
+  "wordPattern": "[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9_]+",
+  "indentationRules": {
+    "increaseIndentPattern": ":\\s*(#.*)?$",
+    "decreaseIndentPattern": "^\\s*(아니면|아니고 만약|실패하면|끝으로)\\b"
+  },
+  "onEnterRules": [
+    {
+      "beforeText": ":\\s*(#.*)?$",
+      "action": { "indent": "indent" }
+    }
+  ]
+}

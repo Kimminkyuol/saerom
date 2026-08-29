@@ -1,0 +1,7 @@
+.vscode/**
+.gitignore
+**/*.map
+**/tsconfig.json
+node_modules/.bin/**
+node_modules/@vscode/vsce/**
+node_modules/@types/**

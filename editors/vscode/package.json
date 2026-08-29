@@ -1,0 +1,166 @@
+{
+  "name": "saerom",
+  "displayName": "새롬",
+  "description": "새롬 언어 지원 — 문법 강조, 자동 완성, 진단, 형식 교정",
+  "version": "0.3.0",
+  "publisher": "saerom",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Formatters",
+    "Linters"
+  ],
+  "keywords": [
+    "saerom",
+    "새롬",
+    "korean"
+  ],
+  "main": "./src/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "saerom",
+        "aliases": [
+          "새롬",
+          "saerom"
+        ],
+        "extensions": [
+          ".sr"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "saerom",
+        "scopeName": "source.saerom",
+        "path": "./syntaxes/saerom.tmLanguage.json"
+      }
+    ],
+    "semanticTokenScopes": [
+      {
+        "language": "saerom",
+        "scopes": {
+          "particle": [
+            "keyword.control.saerom"
+          ],
+          "ending": [
+            "storage.type.saerom"
+          ],
+          "adverb": [
+            "storage.modifier.saerom"
+          ],
+          "keyword": [
+            "keyword.control.saerom"
+          ],
+          "function": [
+            "entity.name.function.saerom"
+          ],
+          "variable": [
+            "variable.other.saerom"
+          ],
+          "property": [
+            "variable.other.property.saerom"
+          ],
+          "type": [
+            "entity.name.type.saerom"
+          ],
+          "namespace": [
+            "entity.name.type.saerom"
+          ],
+          "number": [
+            "constant.numeric.saerom"
+          ],
+          "string": [
+            "string.quoted.double.saerom"
+          ],
+          "comment": [
+            "comment.line.number-sign.saerom"
+          ],
+          "embedded": [
+            "keyword.control.saerom"
+          ],
+          "operator": [
+            "keyword.control.saerom"
+          ]
+        }
+      }
+    ],
+    "commands": [
+      {
+        "command": "saerom.restartServer",
+        "title": "새롬: 언어 서버 다시 시작",
+        "category": "새롬"
+      },
+      {
+        "command": "saerom.showStatus",
+        "title": "새롬: 언어 서버 상태",
+        "category": "새롬"
+      }
+    ],
+    "configuration": {
+      "title": "새롬",
+      "properties": {
+        "saerom.pythonPath": {
+          "type": "string",
+          "default": "python3",
+          "markdownDescription": "`saerom` 이 설치된 파이썬 실행 파일. 작업 폴더에 `.venv` 가 있으면 그쪽을 먼저 쓴다."
+        },
+        "saerom.serverPath": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "언어 서버 실행 파일을 직접 지정한다. 비워 두면 `<pythonPath> -m saerom --lsp` 를 쓴다."
+        },
+        "saerom.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "언어 서버와 주고받는 내용을 출력한다."
+        }
+      }
+    },
+    "configurationDefaults": {
+      "[saerom]": {
+        "editor.semanticHighlighting.enabled": true,
+        "editor.wordBasedSuggestions": "off",
+        "editor.suggestOnTriggerCharacters": true,
+        "editor.quickSuggestions": {
+          "other": true,
+          "comments": false,
+          "strings": true
+        },
+        "editor.suggest.snippetsPreventQuickSuggestions": false
+      }
+    }
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.75.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mickeykim/saerom.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mickeykim/saerom/issues"
+  },
+  "homepage": "https://github.com/mickeykim/saerom",
+  "icon": "icon.png",
+  "galleryBanner": {
+    "color": "#1f2430",
+    "theme": "dark"
+  },
+  "scripts": {
+    "package": "npx --yes @vscode/vsce package",
+    "lint": "node --check src/extension.js"
+  }
+}

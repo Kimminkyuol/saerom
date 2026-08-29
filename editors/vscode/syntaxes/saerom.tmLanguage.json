@@ -1,0 +1,110 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "새롬",
+  "scopeName": "source.saerom",
+  "comment": "언어 서버가 붙기 전까지 쓰는 대략적인 강조. 스코프는 시맨틱 토큰과 맞춰 두었다.",
+  "patterns": [
+    {
+      "include": "#comment"
+    },
+    {
+      "include": "#string"
+    },
+    {
+      "include": "#number"
+    },
+    {
+      "include": "#keyword"
+    },
+    {
+      "include": "#verb"
+    },
+    {
+      "include": "#particle"
+    }
+  ],
+  "repository": {
+    "comment": {
+      "name": "comment.line.number-sign.saerom",
+      "match": "#.*$"
+    },
+    "string": {
+      "name": "string.quoted.double.saerom",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.saerom",
+          "match": "\\\\[ntr\"\\\\{}]"
+        },
+        {
+          "begin": "\\{",
+          "end": "\\}",
+          "beginCaptures": {
+            "0": {
+              "name": "keyword.control.saerom"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "keyword.control.saerom"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#number"
+            },
+            {
+              "include": "#keyword"
+            },
+            {
+              "include": "#verb"
+            },
+            {
+              "include": "#particle"
+            }
+          ]
+        }
+      ]
+    },
+    "number": {
+      "name": "constant.numeric.saerom",
+      "match": "(?<![가-힣A-Za-z_])-?[0-9]+(\\.[0-9]+)?"
+    },
+    "keyword": {
+      "patterns": [
+        {
+          "name": "keyword.control.saerom",
+          "match": "(?<![가-힣])(만약|아니고|아니면|동안|실패하면|끝으로|이런|간격)(?![가-힣])"
+        },
+        {
+          "name": "constant.language.saerom",
+          "match": "(?<![가-힣])(참|거짓|빈목록)(?![가-힣])"
+        },
+        {
+          "name": "variable.other.saerom",
+          "match": "(?<![가-힣])(번째|이유|결과|오류)(?![가-힣])"
+        },
+        {
+          "name": "storage.modifier.saerom",
+          "match": "(?<![가-힣])(모두|각각|가장|하나라도)(?![가-힣])"
+        }
+      ]
+    },
+    "verb": {
+      "match": "([가-힣]+?)(한다|하는지|하는|하면|하고|하거나|하기|하지|해|된다|되는|되면|된)(?![가-힣])",
+      "captures": {
+        "1": {
+          "name": "entity.name.function.saerom"
+        },
+        "2": {
+          "name": "storage.type.saerom"
+        }
+      }
+    },
+    "particle": {
+      "name": "keyword.control.saerom",
+      "match": "(?<=[가-힣0-9\\]\"])(은|는|이|가|을|를|에서|에게|에|으로|로|의|보다|마다|만큼|중|와|과|부터|까지|이다|이면|인지|인|이고)(?![가-힣])"
+    }
+  }
+}
