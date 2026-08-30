@@ -1,12 +1,12 @@
 """문장 하나하나."""
 import os
 
-from ..errors import SaeromError, SyntaxError_, ending_name
+from ..errors import SaeromError, SyntaxError_, ending_name, quote
 from ..nodes import (BreakStmt, Call, ContinueStmt, Declare, DefineStmt, ExecStmt,
                      ExprStmt, Filter, FoldExpr, IfStmt, ImportStmt, Literal,
-                     LoopStmt, MapExpr, Name, PassiveCall, Property, RaiseStmt,
-                     RecordLit, RecordType, ReturnStmt, SelectExpr, TryStmt,
-                     WithStmt)
+                     LoopStmt, MapExpr, Name, NounDef, PassiveCall, Property,
+                     RaiseStmt, RecordLit, RecordType, ReturnStmt, SelectExpr,
+                     TryStmt, WithStmt)
 from ..words import BUILTIN_SIGNATURES
 from .modules import ordered, parse_file, resolve_module
 from .native import load as load_native
@@ -24,6 +24,9 @@ class StatementParser(PhraseParser):
 
         if self.looks_like_definition():
             return self.definition()
+
+        if self.looks_like_noun_definition():
+            return self.noun_definition()
 
         if (token.kind in ("number", "string")
                 or (token.kind == "keyword" and token.value in ("참", "거짓"))):
@@ -98,6 +101,28 @@ class StatementParser(PhraseParser):
                 and self.tokens[end - 2].kind == "particle" and self.tokens[end - 2].extra == "topic"
                 and self.tokens[end - 3].kind == "name" and self.tokens[end - 3].value == "것")
 
+    def looks_like_noun_definition(self):
+        """'<소유자>의 <이름>는:' — 파생 필드의 머리. 값이 있는 선언문과 달리
+        줄이 콜론에서 끝난다."""
+        end = self.line_end()
+        if end - self.pos != 5:
+            return False
+        owner, of, field, topic, colon = self.tokens[self.pos:end]
+        return (owner.kind == "name"
+                and of.kind == "particle" and of.value == "의"
+                and field.kind == "name"
+                and topic.kind == "particle" and topic.extra == "topic"
+                and colon.kind == "symbol" and colon.value == ":")
+
+    def noun_definition(self):
+        owner = self.next().value
+        self.next()
+        field = self.next()
+        self.next()
+        self.nouns.add(field.value)
+        return NounDef(name=field.value, owner=owner, body=self.block(),
+                       line=field.line)
+
     def looks_like_raise(self):
         end = self.line_end()
         return any(self.tokens[i].kind == "keyword" and self.tokens[i].value == "오류"
@@ -170,6 +195,7 @@ class StatementParser(PhraseParser):
                     tuple(signature) for signature in signatures)
             return
         self.known |= set(names)
+        self.nouns |= {name for name in names if name in other.nouns}
         for name in names:
             if name in other.signatures:
                 self.signatures.setdefault(name, []).extend(other.signatures[name])
@@ -217,6 +243,10 @@ class StatementParser(PhraseParser):
                     f"{self.describe(token)}", **self.where(token),)
             self.next()
             particle = self.expect("particle")
+            if any(particle.value == taken for taken, _ in params):
+                raise SyntaxError_(
+                    f"정의에 조사 {quote(particle.value)} 두 번 있음",
+                    **self.where(particle))
             params.append((particle.value, token.value))
 
         self.expect("name", "것")

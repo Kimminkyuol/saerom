@@ -4,7 +4,7 @@ import os
 import sys
 
 from .. import extension
-from ..errors import SaeromError
+from ..errors import SaeromError, quote
 from ..words import PARTICLES
 from .modules import ordered, stamp_of
 
@@ -21,8 +21,11 @@ class NativeModule:
         self.name, self.exports, self.values = name, exports, values
         self.signatures = {}
         for export in exports:
+            if export.kind == "noun":
+                continue
             self.signatures.setdefault(export.name, []).append(
                 ordered(export.particles))
+        self.nouns = {export.name for export in exports if export.kind == "noun"}
         self.types = set()
 
 
@@ -62,17 +65,32 @@ def load(path):
 
 def check(module, export):
     """내놓는 이름과 조사가 새롬이 부를 수 있는 꼴인가."""
-    tail = "하다" if export.kind == "verb" else "이다"
+    if export.kind == "noun":
+        wanted = count_parameters(export.call)
+        if wanted is not None and wanted != 1:
+            raise SaeromError(
+                f"모듈 '{module}'의 파생 필드 '{export.name}'의 매개변수가 "
+                f"하나가 아님: {wanted}개")
+        return
+    tails = ("하다", "되다") if export.kind == "verb" else ("이다",)
     what = "동사" if export.kind == "verb" else "술어"
-    if not export.name.endswith(tail) or len(export.name) <= len(tail):
+    if not any(export.name.endswith(tail) and len(export.name) > len(tail)
+               for tail in tails):
+        shown = "나 ".join(f"'{tail}'" for tail in tails)
         raise SaeromError(
-            f"모듈 '{module}'의 {what} 이름이 '{tail}'로 끝나지 않음: "
+            f"모듈 '{module}'의 {what} 이름이 {shown}로 끝나지 않음: "
             f"'{export.name}'")
+    seen = set()
     for particle in export.particles:
         if particle not in PARTICLE_NAMES:
             raise SaeromError(
                 f"모듈 '{module}'의 '{export.name}'에 조사가 아닌 자리가 있음: "
                 f"'{particle}'")
+        if particle in seen:
+            raise SaeromError(
+                f"모듈 '{module}'의 '{export.name}'에 조사 {quote(particle)} "
+                f"두 번 있음")
+        seen.add(particle)
     wanted = count_parameters(export.call)
     if wanted is not None and wanted != len(export.particles):
         raise SaeromError(

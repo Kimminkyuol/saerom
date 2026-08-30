@@ -103,11 +103,12 @@ class CallMixin:
             return self.finish(function, self.invoke_native(function, pairs, line),
                                line)
         outer = self.scope
-        outer_space = (self.globals, self.functions, self.types)
+        outer_space = (self.globals, self.functions, self.types, self.nouns)
         if function.module is not None:
             self.globals = function.module.values
             self.functions = function.module.functions
             self.types = function.module.types
+            self.nouns = function.module.nouns
         self.scope = function.bind(pairs)
         outer_loops, self.loops = self.loops, 0
         self.stack.append(Frame(function.name, line))
@@ -123,12 +124,16 @@ class CallMixin:
             self.stack.pop()
             self.scope = outer
             self.loops = outer_loops
-            self.globals, self.functions, self.types = outer_space
+            self.globals, self.functions, self.types, self.nouns = outer_space
 
         return self.finish(function, result, line)
 
     def finish(self, function, result, line):
-        """술어는 '~ㄴ지'에 답하는 것이므로 참이나 거짓만 낸다."""
+        """파생 필드는 값을 내야 하고, 술어는 '~ㄴ지'에 답하는 것이므로
+        참이나 거짓만 낸다."""
+        if function.kind == "noun" and result is None:
+            raise ValueError_(
+                f"파생 필드 {quote(function.name)} 아무 값도 내지 않음", line)
         if function.kind == "predicate" and not isinstance(result, bool):
             if result is None:
                 raise ValueError_(

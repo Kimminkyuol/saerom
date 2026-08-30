@@ -25,13 +25,44 @@ function firstWorkspaceFolder() {
   return folders && folders.length ? folders[0].uri.fsPath : undefined;
 }
 
+function isCheckout(folder) {
+  return exists(path.join(folder, "saerom", "lsp", "__init__.py"));
+}
+
+/** 폴더에서 위로 올라가며 새롬 저장소를 찾는다. */
+function checkoutAbove(folder) {
+  let here = folder;
+  while (here) {
+    if (isCheckout(here)) return here;
+    const up = path.dirname(here);
+    if (up === here) return undefined;
+    here = up;
+  }
+  return undefined;
+}
+
+/** 작업 폴더와 열려 있는 문서에서 새롬 저장소를 찾는다. */
+function findCheckout() {
+  const starts = [];
+  const folders = workspace.workspaceFolders || [];
+  for (const folder of folders) starts.push(folder.uri.fsPath);
+  for (const document of workspace.textDocuments) {
+    if (document.uri.scheme === "file") starts.push(path.dirname(document.uri.fsPath));
+  }
+  for (const start of starts) {
+    const found = checkoutAbove(start);
+    if (found) return found;
+  }
+  return undefined;
+}
+
 /**
  * 언어 서버를 어떻게 띄울지 정한다. 앞에서부터 먼저 찾은 것을 쓴다.
  *
  *   1. saerom.serverPath 설정
  *   2. 작업 폴더의 .venv 안에 있는 saerom-lsp
  *   3. 작업 폴더의 .venv 안에 있는 파이썬
- *   4. saerom.pythonPath — 작업 폴더가 새롬 저장소라면 거기서 실행한다
+ *   4. saerom.pythonPath — 작업 폴더나 열린 문서 위쪽에 새롬 저장소가 있으면 거기서 실행한다
  */
 function resolveServer() {
   const settings = workspace.getConfiguration("saerom");
@@ -56,9 +87,11 @@ function resolveServer() {
   const command = settings.get("pythonPath") || "python3";
   const options = {};
   let reason = "saerom.pythonPath 설정";
-  if (folder && exists(path.join(folder, "saerom", "lsp", "__init__.py"))) {
-    options.cwd = folder;
-    reason = "작업 폴더가 새롬 저장소";
+  const checkout = findCheckout();
+  if (checkout) {
+    options.cwd = checkout;
+    options.env = Object.assign({}, process.env, { PYTHONPATH: checkout });
+    reason = `새롬 저장소 ${checkout}`;
   }
   return { command, args: ["-m", "saerom", "--lsp"], options, reason };
 }
@@ -92,7 +125,7 @@ async function start() {
     { run, debug: run },
     {
       documentSelector: [{ scheme: "file", language: "saerom" }],
-      synchronize: { fileEvents: workspace.createFileSystemWatcher("**/*.sr") },
+      synchronize: { fileEvents: workspace.createFileSystemWatcher("**/*.{sr,py}") },
       outputChannel: output,
     }
   );
@@ -106,7 +139,8 @@ async function start() {
     setStatus("failed", `새롬 언어 서버를 시작하지 못했습니다\n${line}`);
     output.appendLine(`시작 실패: ${error && error.message ? error.message : error}`);
     const choice = await window.showErrorMessage(
-      `새롬 언어 서버를 시작하지 못했습니다: ${line}`,
+      `새롬 언어 서버를 시작하지 못했습니다: ${line}\n` +
+        "새롬이 설치된 파이썬을 saerom.pythonPath 로 지정하거나, 새롬 저장소를 작업 폴더에 두십시오.",
       "자세히 보기"
     );
     if (choice) {

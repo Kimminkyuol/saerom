@@ -2,12 +2,12 @@
 import base64
 import hashlib
 
-from saerom.extension import fail, predicate, verb
+from saerom.extension import fail, noun, predicate, verb
 
 VALUES = {"해시이름": "sha256"}
 
 
-@verb("해시구하다", "의")
+@noun("해시")
 def hash_of(text):
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 

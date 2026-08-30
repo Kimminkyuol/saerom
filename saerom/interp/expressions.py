@@ -1,5 +1,5 @@
 """식 하나를 값으로."""
-from ..errors import NameError_, SaeromError, ValueError_, suggest
+from ..errors import NameError_, SaeromError, ValueError_, quote, suggest
 from ..nodes import (AND, OR, Call, Filter, FoldExpr, ListExpr, Literal, MapExpr,
                      Name, PassiveCall, Property, QuantExpr, RecordLit, SelectExpr,
                      SortSpec, Template)
@@ -7,7 +7,7 @@ from .builtins import CHANGES
 from .calls import CallMixin
 import copy
 
-from .values import (ORDINALS, Module, Record, SortKey, kind_of,
+from .values import (ORDINALS, Module, Record, SortKey, kind_of, show,
                      signature_of, to_text, truthy)
 
 
@@ -36,7 +36,7 @@ class ExpressionMixin(CallMixin):
             return self.globals[node.name]
         if self.items:
             try:
-                return self.get_property(self.items[-1], node.name)
+                return self.get_property(self.items[-1], node.name, node.line)
             except SaeromError:
                 pass
         names = set(self.scope) | set(self.globals)
@@ -53,7 +53,8 @@ class ExpressionMixin(CallMixin):
 
     def evaluate_property(self, node):
         try:
-            return self.get_property(self.evaluate(node.owner), node.field)
+            return self.get_property(self.evaluate(node.owner), node.field,
+                                     node.line)
         except SaeromError as error:
             raise error.locate(node)
 
@@ -74,7 +75,10 @@ class ExpressionMixin(CallMixin):
         results = [self.test_clause(node.clause, item, item_name) for item in source]
         return all(results) if node.kind == "all" else any(results)
 
-    def get_property(self, value, field):
+    def get_property(self, value, field, line=None):
+        if field == "복사본":
+            return copy.deepcopy(value)
+
         if field == "자료형":
             if isinstance(value, Record):
                 return value.type_name
@@ -92,6 +96,8 @@ class ExpressionMixin(CallMixin):
         if isinstance(value, Record):
             if field in value.fields:
                 return value.fields[field]
+            if field in self.nouns:
+                return self.derived(value, field, line)
             close = suggest(field, value.fields)
             raise NameError_(
                 f"구조체 '{value.type_name}'에 필드 '{field}' 없음",
@@ -99,10 +105,10 @@ class ExpressionMixin(CallMixin):
                      "필드: " + ", ".join(value.fields))
 
         if isinstance(value, list) and field.endswith("들"):
-            return [self.get_property(item, field[:-1]) for item in value]
+            return [self.get_property(item, field[:-1], line) for item in value]
 
         if isinstance(value, list):
-            if field in ("개수", "길이"):
+            if field == "개수":
                 return len(value)
             if field in ORDINALS:
                 return self.at(value, ORDINALS[field], field)
@@ -111,7 +117,7 @@ class ExpressionMixin(CallMixin):
             if field == "마지막":
                 return self.at(value, -1, field)
         if isinstance(value, str):
-            if field in ("글자수", "길이", "개수"):
+            if field == "글자수":
                 return len(value)
             if field in ORDINALS:
                 return self.at(value, ORDINALS[field], field)
@@ -119,9 +125,16 @@ class ExpressionMixin(CallMixin):
                 return value[self.position(field[:-2], len(value)) - 1]
             if field == "마지막":
                 return self.at(value, -1, field)
+        if field in self.nouns:
+            return self.derived(value, field, line)
         raise NameError_(
             f"{kind_of(value)}에 필드 '{field}' 없음",
-            hint="목록: 개수, 길이, 첫째 ~ 열째, 마지막, <수>번째 / 문자열: 글자수")
+            hint="목록·문자열: 첫째 ~ 열째, 마지막, <수>번째 / "
+                 "목록: 개수 / 문자열: 글자수")
+
+    def derived(self, value, field, line=None):
+        """파생 필드. 소유자를 매개변수에 묶어 몸을 실행한다."""
+        return self.invoke(self.nouns[field], [("의", value)], line)
 
     @staticmethod
     def at(value, index, field):
@@ -283,23 +296,25 @@ class ExpressionMixin(CallMixin):
         return best
 
     def passive(self, node):
-        """피동은 복사본을 고쳐 돌려준다. 능동의 '~을'이 피동에서 '~이'가 된다."""
-        target = copy.deepcopy(self.evaluate(node.head))
-        extra = {p: self.evaluate(e) for p, e in node.slots}
-        if "가" in extra:
-            extra["를"] = extra.pop("가")
-        for particle in self.head_particles(node.verb, set(extra)):
-            handler = self.lookup(node.verb, list(extra) + [particle])
-            if handler is not None:
-                self.apply(node.verb, {**extra, particle: target}, node.line)
-                return target
-        raise SaeromError(f"'{node.verb}'의 피동형 정의되지 않음", node.line)
+        """머리 명사가 비어 있는 조사 자리를 채운다. 값은 그 호출이 낸 것이다."""
+        head = self.evaluate(node.head)
+        args = {p: self.evaluate(e) for p, e in node.slots}
+        for particle in self.head_particles(node.verb, set(args)):
+            if self.lookup(node.verb, list(args) + [particle]) is not None:
+                return self.apply(node.verb, {**args, particle: head}, node.line)
+        raise self.unknown_call(node.verb, {**args, "가": head}, node.line).locate(node)
 
     def call(self, node):
+        """물음꼴로 부른 것은 '~ㄴ지'에 답하는 것이므로 참이나 거짓만 낸다."""
         try:
-            return self.dispatch(node)
+            result = self.dispatch(node)
         except SaeromError as error:
             raise error.locate(node)
+        if getattr(node, "asks", False) and not isinstance(result, bool):
+            raise ValueError_(
+                f"{quote(node.verb, 'object')} 물은 결과가 논리값이 아님: "
+                f"{kind_of(result)} {show(result)}").locate(node)
+        return result
 
     def dispatch(self, node):
         """'이다'는 견줌일 수도, 술어를 부르는 것일 수도 있다. 그것은 실행 때 갈린다."""

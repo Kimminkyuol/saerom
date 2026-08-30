@@ -14,9 +14,10 @@ class Return(Exception):
 
 class Module:
     """A 가져온 모듈. Its members are reached with 의, like any 속성."""
-    def __init__(self, name, values, functions, types):
+    def __init__(self, name, values, functions, types, nouns):
         self.name, self.values = name, values
         self.functions, self.types = functions, types
+        self.nouns = nouns
 
     def __repr__(self):
         return f"모듈 {self.name}"
@@ -25,11 +26,7 @@ _SIGNATURES = {}
 
 
 def signature_of(particles):
-    """조사의 갯수까지 담은 시그니처. 몇 가지 안 되므로 셈한 것을 두고 쓴다.
-
-    같은 조사를 두 번 쓰는 정의는 부를 때도 두 번 써야 하고, 값은 적은 순서대로
-    묶인다. 조사가 서로 다르면 순서는 상관없다.
-    """
+    """조사로 만든 시그니처. 몇 가지 안 되므로 셈한 것을 두고 쓴다."""
     key = particles if type(particles) is tuple else tuple(particles)
     found = _SIGNATURES.get(key)
     if found is None:
@@ -43,24 +40,12 @@ class Function:
     def __init__(self, name, kind, params, body, module=None):
         self.name, self.kind, self.params, self.body = name, kind, params, body
         self.module = module
-        particles = [particle for particle, _ in params]
-        self.signature = signature_of(tuple(particles))
-        self.distinct = len(set(particles)) == len(particles)
+        self.signature = signature_of(tuple(particle for particle, _ in params))
 
     def bind(self, pairs):
-        """부를 때 적은 값을 매개변수에 묶는다. 같은 조사끼리는 적은 순서대로."""
-        if self.distinct:
-            given = dict(pairs)
-            return {name: given[particle] for particle, name in self.params}
-        waiting = {}
-        for particle, value in pairs:
-            waiting.setdefault(particle, []).append(value)
-        scope, used = {}, {}
-        for particle, name in self.params:
-            index = used.get(particle, 0)
-            used[particle] = index + 1
-            scope[name] = waiting[particle][index]
-        return scope
+        """부를 때 적은 값을 매개변수에 묶는다."""
+        given = dict(pairs)
+        return {name: given[particle] for particle, name in self.params}
 
 class NativeFunction(Function):
     """파이썬으로 적은 동사. 조사를 적은 차례대로 매개변수에 들어간다."""
@@ -74,6 +59,12 @@ class Record:
     def __init__(self, type_name, fields):
         self.type_name = type_name
         self.fields = dict(fields)
+
+    def __eq__(self, other):
+        return (isinstance(other, Record) and self.type_name == other.type_name
+                and self.fields == other.fields)
+
+    __hash__ = None
 
     def __repr__(self):
         inner = ", ".join(f"{k}={to_text(v)}" for k, v in self.fields.items())

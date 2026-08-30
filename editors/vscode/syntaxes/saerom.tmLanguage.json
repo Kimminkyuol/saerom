@@ -14,6 +14,9 @@
       "include": "#number"
     },
     {
+      "include": "#definition"
+    },
+    {
       "include": "#keyword"
     },
     {
@@ -78,6 +81,10 @@
           "match": "(?<![가-힣])(만약|아니고|아니면|동안|실패하면|끝으로|이런|간격)(?![가-힣])"
         },
         {
+          "name": "keyword.control.saerom",
+          "match": "(?<![가-힣])(이상|이하|초과|미만)(?![가-힣])"
+        },
+        {
           "name": "constant.language.saerom",
           "match": "(?<![가-힣])(참|거짓|빈목록)(?![가-힣])"
         },
@@ -92,7 +99,7 @@
       ]
     },
     "verb": {
-      "match": "([가-힣]+?)(한다|하는지|하는|하면|하고|하거나|하기|하지|해|된다|되는|되면|된)(?![가-힣])",
+      "match": "([가-힣]+?)(하는지|하거나|한다|하는|하면|하고|하기|하지|해|되는지|되거나|된다|되는|되면|되고|되지|된|는다|는지|으면|거나)(?![가-힣])",
       "captures": {
         "1": {
           "name": "entity.name.function.saerom"
@@ -104,7 +111,53 @@
     },
     "particle": {
       "name": "keyword.control.saerom",
-      "match": "(?<=[가-힣0-9\\]\"])(은|는|이|가|을|를|에서|에게|에|으로|로|의|보다|마다|만큼|중|와|과|부터|까지|이다|이면|인지|인|이고)(?![가-힣])"
+      "match": "(?<=[가-힣0-9\\]\"])(이라는|라는|이거나|이고|이면|인지|이다|인|은|는|이|가|을|를|에서|에게|에|으로|로|의|보다|마다|만큼|중|와|과|부터|까지)(?![가-힣])"
+    },
+    "definition": {
+      "patterns": [
+        {
+          "comment": "파생 필드 정의",
+          "match": "^\\s*([가-힣0-9_]+)(의)\\s+([가-힣0-9_]+)(는|은)\\s*:",
+          "captures": {
+            "1": {
+              "name": "variable.other.saerom"
+            },
+            "2": {
+              "name": "keyword.control.saerom"
+            },
+            "3": {
+              "name": "entity.name.function.saerom"
+            },
+            "4": {
+              "name": "keyword.control.saerom"
+            }
+          }
+        },
+        {
+          "comment": "어간 동사 정의",
+          "match": "([가-힣0-9_]+?)(는)\\s+(것은)\\s*:",
+          "captures": {
+            "1": {
+              "name": "entity.name.function.saerom"
+            },
+            "2": {
+              "name": "storage.type.saerom"
+            },
+            "3": {
+              "name": "keyword.control.saerom"
+            }
+          }
+        },
+        {
+          "comment": "정의문의 꼬리",
+          "match": "(?<=[가-힣])\\s(것은)\\s*:",
+          "captures": {
+            "1": {
+              "name": "keyword.control.saerom"
+            }
+          }
+        }
+      ]
     }
   }
 }

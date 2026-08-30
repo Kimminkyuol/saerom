@@ -63,30 +63,42 @@ ENDINGS = ("final", "adnominal_past", "adnominal_pres", "conditional",
            "negative")
 
 
+def drop_riul(stem):
+    """ㄹ 받침을 뗀 어간: 살 -> 사, 열 -> 여."""
+    onset, vowel, _ = decompose(stem[-1])
+    return stem[:-1] + compose(onset, vowel)
+
+
 def conjugate(stem, pos, ending):
-    """어간에 어미를 붙인다. 사용자 동사는 모두 '명사 + 하다' 라서 규칙적이고,
+    """어간에 어미를 붙인다. 규칙 활용과 ㄹ탈락만 안다.
     불규칙한 것은 내장뿐이라 words.py 의 표가 따로 덮어쓴다.
 
     pos: "verb" (동사) 또는 "descriptive" (형용사·이다)
     """
     last = stem[-1]
-    open_syllable = coda_of(last) == ""
+    coda = coda_of(last)
+    open_syllable = coda == ""
+    trimmed = drop_riul(stem) if coda == "ㄹ" else stem
 
     if ending == "final":
         if pos == "descriptive":
             return stem + "다"
-        return stem[:-1] + add_coda(last, "ㄴ") + "다" if open_syllable else stem + "는다"
+        if open_syllable or coda == "ㄹ":
+            return trimmed[:-1] + add_coda(trimmed[-1], "ㄴ") + "다"
+        return stem + "는다"
 
     if ending == "adnominal_past":
-        return stem[:-1] + add_coda(last, "ㄴ") if open_syllable else stem + "은"
+        if open_syllable or coda == "ㄹ":
+            return trimmed[:-1] + add_coda(trimmed[-1], "ㄴ")
+        return stem + "은"
 
     if ending == "adnominal_pres":
         if pos == "descriptive":
             return conjugate(stem, pos, "adnominal_past")
-        return stem + "는"
+        return trimmed + "는"
 
     if ending == "conditional":
-        return stem + ("면" if open_syllable else "으면")
+        return stem + ("면" if open_syllable or coda == "ㄹ" else "으면")
 
     if ending == "conjunctive":
         return stem + "고"
@@ -97,7 +109,7 @@ def conjugate(stem, pos, ending):
     if ending == "interrogative":
         if pos == "descriptive":
             return conjugate(stem, pos, "adnominal_past") + "지"
-        return stem + "는지"
+        return trimmed + "는지"
 
     if ending == "nominal":
         return stem + "기"

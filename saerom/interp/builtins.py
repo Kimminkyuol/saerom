@@ -70,7 +70,7 @@ def build(interp):
     def sort_in_place(a):
         target = a["를"]
         if not isinstance(target, list):
-            raise SaeromError("'정렬하다'의 인자가 목록이 아님")
+            raise ValueError_("'정렬하다'의 인자가 목록이 아님")
         spec = a.get("로")
         if isinstance(spec, SortKey):
             target.sort(key=lambda item: sort_key(spec.of(item)),
@@ -79,13 +79,23 @@ def build(interp):
             target.sort(key=sort_key)
         return target
 
+    def sorted_copy(a):
+        target = a["가"]
+        if not isinstance(target, list):
+            raise ValueError_("'정렬되다'의 인자가 목록이 아님")
+        spec = a.get("로")
+        if isinstance(spec, SortKey):
+            return sorted(target, key=lambda item: sort_key(spec.of(item)),
+                          reverse=spec.descending)
+        return sorted(target, key=sort_key)
+
     def sort_key(value):
         return (0, value, "") if isinstance(value, (int, float)) else (1, 0, to_text(value))
 
     def append(a):
         target = a["에"]
         if not isinstance(target, list):
-            raise SaeromError("'더하다'의 '~에' 자리가 목록이 아님")
+            raise ValueError_("'더하다'의 '~에' 자리가 목록이 아님")
         if isinstance(a["를"], list):
             target.extend(a["를"])
         else:
@@ -162,6 +172,8 @@ def build(interp):
         ("자르다", signature_of(["를", "로"])): split_text,
         ("정렬하다", signature_of(["를"])): sort_in_place,
         ("정렬하다", signature_of(["를", "로"])): sort_in_place,
+        ("정렬되다", signature_of(["가"])): sorted_copy,
+        ("정렬되다", signature_of(["가", "로"])): sorted_copy,
         ("읽다", signature_of(["를"])): read_file,
         ("입력받다", signature_of([])): read_line,
         ("열다", signature_of(["를"])): open_file,

@@ -52,8 +52,31 @@ class Conjugate(unittest.TestCase):
         ("크", "descriptive", "negative", "크지"),
     ]
 
+    RIUL = [
+        ("열", "verb", "final", "연다"),
+        ("열", "verb", "adnominal_past", "연"),
+        ("열", "verb", "adnominal_pres", "여는"),
+        ("열", "verb", "interrogative", "여는지"),
+        ("열", "verb", "conditional", "열면"),
+        ("열", "verb", "conjunctive", "열고"),
+        ("살", "verb", "final", "산다"),
+        ("살", "verb", "adnominal_pres", "사는"),
+        ("살", "verb", "conditional", "살면"),
+        ("살", "verb", "auxiliary", "살아"),
+        ("만들", "verb", "final", "만든다"),
+        ("만들", "verb", "adnominal_past", "만든"),
+        ("길", "descriptive", "final", "길다"),
+        ("길", "descriptive", "adnominal_past", "긴"),
+    ]
+
     def test_all(self):
         for stem, pos, ending, wanted in self.CASES:
+            with self.subTest(stem=stem, ending=ending):
+                self.assertEqual(conjugate(stem, pos, ending), wanted)
+
+    def test_riul_drops_before_nieun(self):
+        """ㄹ 받침은 ㄴ·는 앞에서 빠진다. 조건은 '으' 없이 붙는다."""
+        for stem, pos, ending, wanted in self.RIUL:
             with self.subTest(stem=stem, ending=ending):
                 self.assertEqual(conjugate(stem, pos, ending), wanted)
 

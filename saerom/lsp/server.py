@@ -3,6 +3,7 @@
 Diagnostics, semantic tokens, formatting, completion, hover and the outline.
 Nothing here runs the user's program: everything comes from lexing and parsing.
 """
+import os
 import urllib.parse
 
 from ..errors import SaeromError
@@ -153,7 +154,8 @@ class Server:
         text = self.documents.get(uri)
         if text is None:
             return []
-        formatted = format_source(text)
+        path = uri_to_path(uri)
+        formatted = format_source(text, os.path.dirname(path) if path else None)
         if formatted == text:
             return []
         lines = text.split("\n")

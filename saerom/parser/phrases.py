@@ -9,7 +9,7 @@ from ..lexer import Token, tokenize
 from ..nodes import (AND, OR, Call, Filter, FoldExpr, ListExpr, Literal, MapExpr,
                      Name, Node, PassiveCall, Property, QuantExpr, SelectExpr,
                      SortSpec, Template)
-from ..words import CALL_TAILS, STRUCTURAL
+from ..words import CALL_TAILS, COMPARATIVES, STRUCTURAL
 from .base import ParserBase, VerbInfo
 from .modules import fits
 
@@ -122,6 +122,28 @@ class PhraseParser(ParserBase):
         return arguments, structural
 
     @staticmethod
+    def fold_comparison(slots, info):
+        """'X가 Y 이상이다' 는 견줌이다.
+
+        견줌 명사가 조사 없이 이다 바로 앞에 있고 그 앞이 견줄 값일 때만 접는다.
+        그래야 이상·이하가 이름으로 쓰인 자리와 갈린다.
+        """
+        if info.name != "이다" or len(slots) < 2:
+            return slots, info
+        marker, word = slots[-1]
+        particle, operand = slots[-2]
+        if marker not in (None, "가") or particle is not None:
+            return slots, info
+        if not isinstance(word, Name):
+            return slots, info
+        found = COMPARATIVES.get(word.name)
+        if found is None:
+            return slots, info
+        verb, negated = found
+        return (slots[:-2] + [("보다", operand)],
+                info._replace(name=verb, negated=negated != info.negated))
+
+    @staticmethod
     def copula_slots(slots):
         """'X가 Y가 아니다' 는 이중주격이다. 뒤의 '가'가 보어이므로 조사를 뗀다."""
         subjects = [index for index, (particle, _) in enumerate(slots)
@@ -148,9 +170,10 @@ class PhraseParser(ParserBase):
             kept, slots = self.split_slots(info.name, slots)
         self._kept = kept
         if info.name == "이다":
-            slots = self.copula_slots(slots)
+            slots, info = self.fold_comparison(self.copula_slots(slots), info)
         clause = Call(verb=info.name, slots=slots, adverbs=adverbs,
-                      negated=info.negated, tail=None, **self.where_verb(info))
+                      negated=info.negated, tail=None,
+                      asks=info.ending == "interrogative", **self.where_verb(info))
 
         token = self.peek()
         follows_name = token.kind == "name"
@@ -176,7 +199,7 @@ class PhraseParser(ParserBase):
             rest = [(p, e) for p, e in slots if p != "중"]
             if info.pos == "passive":
                 return PassiveCall(verb=info.name, head=Name(name=head),
-                                   slots=rest, line=info.line)
+                                   slots=rest, **self.where_verb(info))
             source = partitive[0] if partitive else Name(name=head)
             item = head[:-1] if head.endswith("들") else head
             clause.slots = rest
@@ -191,7 +214,7 @@ class PhraseParser(ParserBase):
             rest = [(p, e) for p, e in slots if p != "를"]
             if target:
                 return PassiveCall(verb=info.name, head=target[0], slots=rest,
-                                   line=info.line)
+                                   **self.where_verb(info))
 
         return self.apply_adverbs(clause, adverbs, info)
 
@@ -295,8 +318,9 @@ class PhraseParser(ParserBase):
         position back on -- otherwise a call made inside a 보간 reports the
         wrong line in the 호출 스택.
         """
-        inner = type(self)(tokenize(source, self.known))
+        inner = type(self)(tokenize(source, self.known, self.stems))
         inner.known = self.known
+        inner.stems = self.stems
         inner.signatures = self.signatures
         inner.types = self.types
         inner.module_names = self.module_names
@@ -358,7 +382,8 @@ class PhraseParser(ParserBase):
                         subject = expr
 
                 if info.name == "이다":
-                    slots = self.copula_slots(slots)
+                    slots, info = self.fold_comparison(
+                        self.copula_slots(slots), info)
                 piece = self.apply_adverbs(
                     Call(verb=info.name, slots=slots, adverbs=adverbs,
                          negated=info.negated, tail=None, **self.where_verb(info)),

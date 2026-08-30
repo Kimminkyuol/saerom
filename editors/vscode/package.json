@@ -2,7 +2,7 @@
   "name": "saerom",
   "displayName": "새롬",
   "description": "새롬 언어 지원 — 문법 강조, 자동 완성, 진단, 형식 교정",
-  "version": "0.3.0",
+  "version": "0.5.0",
   "publisher": "saerom",
   "license": "MIT",
   "engines": {

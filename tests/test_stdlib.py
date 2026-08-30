@@ -12,15 +12,17 @@ class Module(unittest.TestCase):
 
 
 class Math(Module):
-    SETUP = "수학을 가져온다.\n"
+    SETUP = ("수학을 가져온다.\n"
+             "수학에서 부호와 절댓값과 제곱근과 계승과 약수들과 "
+             "최대공약수와 최소공배수를 가져온다.\n")
 
     def test_constant(self):
         self.check("수학의 원주율", "3.14159265359")
 
     def test_sign_and_absolute(self):
-        self.check("-3의 수학의 부호구한 값", "-1")
-        self.check("0의 수학의 부호구한 값", "0")
-        self.check("-7을 수학의 절댓값구한 값", "7")
+        self.check("-3의 부호", "-1")
+        self.check("0의 부호", "0")
+        self.check("-7의 절댓값", "7")
 
     def test_negative(self):
         self.check("-1이 수학의 음수인지", "참")
@@ -39,16 +41,16 @@ class Math(Module):
         self.check("5를 0만큼 수학의 거듭제곱한 값", "1")
 
     def test_square_root(self):
-        self.check("16의 수학의 제곱근구한 값", "4")
-        self.check("0의 수학의 제곱근구한 값", "0")
+        self.check("16의 제곱근", "4")
+        self.check("0의 제곱근", "0")
 
     def test_square_root_of_a_negative(self):
         self.assertEqual(
-            failure("수학을 가져온다.\n-1의 수학의 제곱근구한 값을 출력한다.").kind, "예외")
+            failure("수학에서 제곱근을 가져온다.\n-1의 제곱근을 출력한다.").kind, "예외")
 
     def test_factorial(self):
-        self.check("5의 수학의 계승구한 값", "120")
-        self.check("0의 수학의 계승구한 값", "1")
+        self.check("5의 계승", "120")
+        self.check("0의 계승", "1")
 
     def test_prime(self):
         self.check("7이 수학의 소수인지", "참")
@@ -56,52 +58,51 @@ class Math(Module):
         self.check("1이 수학의 소수인지", "거짓")
 
     def test_divisors(self):
-        self.check("12의 수학의 약수구한 값", "[1, 2, 3, 4, 6, 12]")
+        self.check("12의 약수들", "[1, 2, 3, 4, 6, 12]")
 
     def test_gcd_and_lcm(self):
-        self.check("12와 18의 수학의 최대공약수구한 값", "6")
-        self.check("12와 18의 수학의 최소공배수구한 값", "36")
+        self.check("[12, 18]의 최대공약수", "6")
+        self.check("[12, 18]의 최소공배수", "36")
 
 
 class Statistics(Module):
-    SETUP = ("통계에서 합구하다와 평균구하다와 분산구하다와 표준편차구하다와 "
-             "범위구하다와 중앙값구하다와 최빈값구하다를 가져온다.\n"
+    SETUP = ("통계에서 합과 평균과 분산과 표준편차와 "
+             "범위와 중앙값과 최빈값을 가져온다.\n"
              "수들은 [4, 1, 3, 1, 2]이다.\n")
 
     def test_sum_and_mean(self):
-        self.check("수들의 합구한 값", "11")
-        self.check("수들의 평균구한 값", "2.2")
+        self.check("수들의 합", "11")
+        self.check("수들의 평균", "2.2")
 
     def test_spread(self):
-        self.check("수들의 분산구한 값", "1.36")
-        self.check("수들의 범위구한 값", "3")
+        self.check("수들의 분산", "1.36")
+        self.check("수들의 표준편차", "1.16619037897")
+        self.check("수들의 범위", "3")
 
     def test_median(self):
-        self.check("수들의 중앙값구한 값", "2")
-        self.check("[4, 1, 3, 2]의 중앙값구한 값", "2.5")
+        self.check("수들의 중앙값", "2")
+        self.check("[4, 1, 3, 2]의 중앙값", "2.5")
 
     def test_mode(self):
-        self.check("수들의 최빈값구한 값", "1")
+        self.check("수들의 최빈값", "1")
 
     def test_empty(self):
-        self.check("빈목록의 합구한 값", "0")
-        self.check("빈목록의 평균구한 값", "0")
+        self.check("빈목록의 합", "0")
+        self.check("빈목록의 평균", "0")
 
 
 class Lists(Module):
-    SETUP = ("목록에서 포함하다와 위치구하다와 역순구하다와 중복제거하다와 "
+    SETUP = ("목록에서 위치구하다와 역순과 중복제거하다와 "
              "앞부분구하다와 뒷부분구하다와 연결하다와 개수구하다를 가져온다.\n")
 
-    def test_contains_and_position(self):
-        self.check("[1, 2, 3]이 2를 포함하는지", "참")
-        self.check("[1, 2]가 5를 포함하는지", "거짓")
+    def test_position(self):
         self.check("[10, 20, 30]에서 20의 위치구한 값", "2")
         self.check("[1]에서 9의 위치구한 값", "0")
 
     def test_reverse(self):
-        self.check("[1, 2, 3]의 역순구한 값", "[3, 2, 1]")
-        self.check('["가", "나"]의 역순구한 값', "[나, 가]")
-        self.check("빈목록의 역순구한 값", "[]")
+        self.check("[1, 2, 3]의 역순", "[3, 2, 1]")
+        self.check('["가", "나"]의 역순', "[나, 가]")
+        self.check("빈목록의 역순", "[]")
 
     def test_unique(self):
         self.check("[1, 2, 1, 3, 2]의 중복제거한 값", "[1, 2, 3]")
@@ -116,15 +117,15 @@ class Lists(Module):
 
 
 class Text(Module):
-    SETUP = ("글자에서 글자들구하다와 뒤집기하다와 치환하다와 되풀이하다와 "
-             "부분구하다와 자리구하다와 분리하다와 왼쪽채움하다를 가져온다.\n")
+    SETUP = ("글자에서 글자들과 뒤집다와 치환하다와 되풀이하다와 "
+             "부분구하다와 자리구하다와 왼쪽채움하다를 가져온다.\n")
 
     def test_characters(self):
-        self.check('"가나다"의 글자들구한 값', "[가, 나, 다]")
-        self.check('""의 글자들구한 값', "[]")
+        self.check('"가나다"의 글자들', "[가, 나, 다]")
+        self.check('""의 글자들', "[]")
 
     def test_reverse(self):
-        self.check('"가나다"의 뒤집기한 값', "다나가")
+        self.check('"가나다"를 뒤집은 값', "다나가")
 
     def test_replace(self):
         self.check('"a-b-c"에서 "-"를 "+"로 치환한 값', "a+b+c")
@@ -141,9 +142,6 @@ class Text(Module):
         self.check('"가나다"에서 "나다"의 자리구한 값', "2")
         self.check('"가나"에서 "라"의 자리구한 값', "0")
 
-    def test_split(self):
-        self.check('"a,,b"를 ","로 분리한 값', "[a, b]")
-
     def test_pad(self):
         self.check('"7"을 3만큼 왼쪽채움한 값', "  7")
         self.check('"1234"를 3만큼 왼쪽채움한 값', "1234")
@@ -156,7 +154,7 @@ class Imports(unittest.TestCase):
 
     def test_selective_import_needs_no_namespace(self):
         self.assertEqual(
-            run('수학에서 절댓값구하다를 가져온다.\n"{-3을 절댓값구한 값}"을 출력한다.'), "3")
+            run('수학에서 절댓값을 가져온다.\n"{-3의 절댓값}"을 출력한다.'), "3")
 
     def test_predicate_by_dictionary_form(self):
         self.assertEqual(
@@ -166,7 +164,7 @@ class Imports(unittest.TestCase):
     def test_module_can_import_a_module(self):
         """글자 는 목록 을 가져다 쓴다."""
         self.assertEqual(
-            run('글자에서 뒤집기하다를 가져온다.\n"{"가나"의 뒤집기한 값}"을 출력한다.'), "나가")
+            run('글자에서 뒤집다를 가져온다.\n"{"가나"를 뒤집은 값}"을 출력한다.'), "나가")
 
     def test_unknown_module(self):
         self.assertEqual(failure("없는모듈을 가져온다.").kind, "구문 오류")

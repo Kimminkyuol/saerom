@@ -27,6 +27,8 @@ class ParserBase:
         self.signatures = {name: [ordered(sig) for sig in sigs]
                            for name, sigs in BUILTIN_SIGNATURES.items()}
         self.known = frozenset()
+        self.stems = frozenset()
+        self.nouns = set()
         self.base_dir = None
         self.module_names = set()
 

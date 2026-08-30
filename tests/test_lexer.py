@@ -4,8 +4,9 @@ from saerom.errors import SaeromError
 from saerom.lexer import tokenize
 
 
-def kinds(source):
-    return [(t.kind, t.value) for t in tokenize(source)
+def kinds(source, stems=frozenset()):
+    known = None if not stems else frozenset()
+    return [(t.kind, t.value) for t in tokenize(source, known, stems)
             if t.kind not in ("newline", "indent", "dedent", "eof")]
 
 
@@ -42,10 +43,26 @@ class Verbs(unittest.TestCase):
 
     def test_passive(self):
         token = tokenize("정렬된")[0]
-        self.assertEqual((token.value, token.extra[0]), ("정렬하다", "passive"))
+        self.assertEqual((token.value, token.extra[0]), ("정렬되다", "passive"))
 
     def test_negation(self):
         self.assertEqual(kinds("크지 않으면"), [("verb", "크다"), ("verb", "않다")])
+
+    def test_riul_builtin_comes_from_the_rule(self):
+        """'열다'의 활용형은 표에 적어 두지 않고 규칙이 만든다."""
+        for text in ("연다", "연", "여는", "여는지", "열면", "열고"):
+            with self.subTest(text=text):
+                self.assertEqual(kinds(text), [("verb", "열다")])
+
+    def test_stem_forms(self):
+        """어간을 알면 그 활용형이 동사가 된다."""
+        for text in ("뒤집는다", "뒤집은", "뒤집는", "뒤집으면", "뒤집는지", "뒤집기"):
+            with self.subTest(text=text):
+                self.assertEqual(kinds(text, {"뒤집"}), [("verb", "뒤집다")])
+
+    def test_stem_is_a_name_without_the_prescan(self):
+        """어간을 모르면 '뒤집는'은 이름과 조사로 갈라진다."""
+        self.assertEqual(kinds("뒤집는"), [("name", "뒤집"), ("particle", "는")])
 
 
 class Spans(unittest.TestCase):

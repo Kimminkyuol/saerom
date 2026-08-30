@@ -13,9 +13,10 @@ class Parser(StatementParser):
 
 
 def make_parser(source, base_dir=None):
-    known = prescan(source)
-    parser = Parser(tokenize(source, known))
-    parser.known = known
+    vocabulary = prescan(source, base_dir)
+    parser = Parser(tokenize(source, vocabulary.names, vocabulary.stems))
+    parser.known = vocabulary.names
+    parser.stems = vocabulary.stems
     parser.base_dir = base_dir
     return parser
 

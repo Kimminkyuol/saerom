@@ -2,6 +2,7 @@
 from ..errors import SaeromError
 from ..lexer import tokenize
 from ..formatter import code_part
+from ..words import COMPARATIVES
 
 TOKEN_TYPES = ["namespace", "type", "function", "variable", "property",
                "keyword", "string", "number", "comment", "operator",
@@ -47,16 +48,9 @@ class TokenMixin:
         return encode(spans)
 
     def _name_role(self, index):
-        token = self.tokens[index]
-        if token.value in self.modules:
-            return "namespace"
-        if token.value in self.types:
-            return "type"
-        previous = self.tokens[index - 1] if index else None
-        if previous is not None and previous.kind == "particle" \
-                and previous.value == "의":
-            return "property"
-        return "variable"
+        return name_role(self.tokens[index],
+                         self.tokens[index - 1] if index else None,
+                         self.modules, self.types)
 
     def _template_spans(self, token):
         """A string keeps its colour, but the {...} inside is real code.
@@ -86,11 +80,11 @@ class TokenMixin:
 
     def _inner_spans(self, line, offset, inner):
         try:
-            pieces = tokenize(inner, frozenset(self.names))
+            pieces = tokenize(inner, frozenset(self.names), self.stems)
         except SaeromError:
             return []
         spans = []
-        for piece in pieces:
+        for index, piece in enumerate(pieces):
             if piece.line != 1:
                 continue
             if piece.kind == "verb":
@@ -98,8 +92,12 @@ class TokenMixin:
                           for _, col, length, name in verb_spans(piece)]
                 continue
             name = KIND_TO_TYPE.get(piece.kind)
-            if name is not None:
-                spans.append((line, offset + piece.col, piece.end - piece.col, name))
+            if name is None:
+                continue
+            if name == "variable":
+                name = name_role(piece, pieces[index - 1] if index else None,
+                                 self.modules, self.types)
+            spans.append((line, offset + piece.col, piece.end - piece.col, name))
         return spans
 
     def _comment_spans(self):
@@ -109,6 +107,19 @@ class TokenMixin:
             if len(code) < len(line):
                 spans.append((number, len(code), len(line) - len(code), "comment"))
         return spans
+
+
+def name_role(token, previous, modules, types):
+    """이름 하나가 무엇을 가리키는가."""
+    if token.value in COMPARATIVES:
+        return "operator"
+    if token.value in modules:
+        return "namespace"
+    if token.value in types:
+        return "type"
+    if previous is not None and previous.kind == "particle" and previous.value == "의":
+        return "property"
+    return "variable"
 
 
 def verb_spans(token):

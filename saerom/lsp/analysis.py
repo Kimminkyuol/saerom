@@ -3,14 +3,15 @@ import os
 
 from ..errors import SaeromError
 from ..lexer import prescan, tokenize
-from ..nodes import Call, Declare, DefineStmt, Name, Node, PassiveCall, RecordType
+from ..nodes import (Call, Declare, DefineStmt, Name, Node, NounDef,
+                     PassiveCall, RecordType)
 from ..parser import make_parser
 from ..words import BUILTIN_SIGNATURES
 from .completion import CompletionMixin
 from .tokens import TOKEN_MODIFIERS, TOKEN_TYPES, TokenMixin  # noqa: F401
 
 # LSP SymbolKind
-FUNCTION, METHOD, VARIABLE, STRUCT = 12, 6, 13, 23
+FUNCTION, METHOD, VARIABLE, STRUCT, FIELD = 12, 6, 13, 23, 8
 
 SEVERITY_ERROR = 1
 
@@ -35,26 +36,31 @@ class Analysis(TokenMixin, CompletionMixin):
         self.tokens = []
         self.statements = []
         self.names = set()
+        self.stems = frozenset()
         self.verbs = dict(BUILTIN_SIGNATURES)
+        self.nouns = set()
         self.types = set()
         self.modules = set()
         self._analyse()
 
     def _analyse(self):
         try:
-            self.tokens = tokenize(self.text)
+            vocabulary = prescan(self.text, self.directory())
+            self.tokens = tokenize(self.text, vocabulary.names, vocabulary.stems)
         except SaeromError as error:
             self.error = error
             return
+        self.names = set(vocabulary.names)
+        self.stems = vocabulary.stems
         try:
             parser = make_parser(self.text, self.directory())
             self.statements = parser.program()
             self.verbs = dict(parser.signatures)
+            self.nouns = set(parser.nouns)
             self.types = set(parser.types)
             self.modules = set(parser.module_names)
         except SaeromError as error:
             self.error = error
-        self.names = set(prescan(self.text))
         self.names |= {statement.target.name for statement in self.statements
                        if isinstance(statement, Declare)
                        and isinstance(statement.target, Name)}
@@ -114,6 +120,9 @@ class Analysis(TokenMixin, CompletionMixin):
                 kind = FUNCTION if statement.kind == "verb" else METHOD
                 out.append(self._symbol(statement.name, kind, statement.line,
                                         detail=signature_text(statement)))
+            elif isinstance(statement, NounDef):
+                out.append(self._symbol(statement.name, FIELD, statement.line,
+                                        detail=f"~의 {statement.name}"))
             elif isinstance(statement, RecordType):
                 out.append(self._symbol(statement.name, STRUCT, statement.line,
                                         detail=", ".join(n for n, _ in statement.fields)))

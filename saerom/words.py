@@ -2,6 +2,8 @@
 
 형태소 분석기를 부르지 않는다. 같은 소스는 언제나 같게 갈라져야 한다.
 """
+from functools import lru_cache
+
 from .hangul import conjugate, ENDINGS
 
 CASE_PARTICLES = {
@@ -40,6 +42,12 @@ COPULA = {
 }
 COPULA_BY_LENGTH = sorted(COPULA, key=len, reverse=True)
 
+# 견줌 명사와 그것이 풀리는 술어. 닫힌 표에 두어야 초과가 초 + 과로 갈라지지 않는다.
+COMPARATIVES = {
+    "이상": ("작다", True), "이하": ("크다", True),
+    "초과": ("크다", False), "미만": ("작다", False),
+}
+
 
 BUILTINS = {
     "출력하다": ("출력하", "verb", {}),
@@ -57,8 +65,7 @@ BUILTINS = {
     "읽다": ("읽", "verb", {}),
     "입력받다": ("입력받", "verb", {}),
     "쓰다": ("쓰", "verb", {}),
-    "열다": ("열", "verb", {"adnominal_pres": "여는", "adnominal_past": "연",
-                           "final": "연다", "conditional": "열면"}),
+    "열다": ("열", "verb", {}),
     "실패하다": ("실패하", "verb", {}),
     "가져오다": ("가져오", "verb", {}),
     "시작하다": ("시작하", "verb", {}),
@@ -95,6 +102,18 @@ def build_form_table(verbs):
 
 
 VERB_FORMS = build_form_table(BUILTINS)
+
+
+@lru_cache(maxsize=None)
+def stem_forms(stems):
+    """어간의 규칙 활용형 -> (사전형, 품사, 어미). 사전형은 어간 + 다 이다."""
+    table = {}
+    for stem in sorted(stems):
+        name = stem + "다"
+        for ending in ENDINGS:
+            table.setdefault(conjugate(stem, "verb", ending), (name, "verb", ending))
+    return table
+
 
 KEYWORDS = {
     "만약", "아니고", "아니면", "동안", "이런",
@@ -139,6 +158,7 @@ BUILTIN_SIGNATURES = {
     "다듬다": [{"를"}],
     "자르다": [{"를", "로"}],
     "정렬하다": [{"를"}, {"를", "로"}],
+    "정렬되다": [{"가"}, {"가", "로"}],
     "읽다": [{"를"}],
     "입력받다": [set()],
     "열다": [{"를"}],

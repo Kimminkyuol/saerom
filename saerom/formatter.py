@@ -28,25 +28,30 @@ NO_SPACE_AFTER = {"["}
 INDENT = "    "
 
 
-def format_source(source):
-    """소스를 정해진 꼴로. 갈라지지 않으면 SaeromError."""
+def format_source(source, base_dir=None):
+    """소스를 정해진 꼴로. 갈라지지 않으면 SaeromError.
+
+    base_dir 를 주어야 가져온 모듈의 어간 동사를 알아본다. 모르면 '뒤집는'이
+    이름과 조사로 갈라져 조사 교정이 코드를 망가뜨린다.
+    """
     text = unicodedata.normalize("NFC", source).replace("\t", INDENT)
     if not text.strip():
         return ""
-    text = fix_particles(text)
-    text = fix_spacing(text)
+    vocabulary = prescan(text, base_dir)
+    text = fix_particles(text, vocabulary)
+    text = fix_spacing(text, vocabulary)
     text = fix_indentation(text)
     return text.rstrip("\n") + "\n"
 
 
-def is_formatted(source):
-    return format_source(source) == source
+def is_formatted(source, base_dir=None):
+    return format_source(source, base_dir) == source
 
 
-def fix_particles(text):
-    known = prescan(text)
+def fix_particles(text, vocabulary):
+    known = vocabulary.names
     lines = text.split("\n")
-    tokens = tokenize(text, known)
+    tokens = tokenize(text, known, vocabulary.stems)
     edits = defaultdict(list)
 
     for index, token in enumerate(tokens):
@@ -55,7 +60,7 @@ def fix_particles(text):
             for kind, inner, start, stop in token.value:
                 if kind != "expr":
                     continue
-                fixed = fix_fragment(inner, known)
+                fixed = fix_fragment(inner, vocabulary)
                 if fixed != inner:
                     edits[token.line].append((start, stop, fixed))
             continue
@@ -88,10 +93,10 @@ def touches_name(previous, particle):
             and previous.line == particle.line and previous.end == particle.col)
 
 
-def fix_fragment(fragment, known):
+def fix_fragment(fragment, vocabulary):
     """Correct particles inside one {...} of a 보간 string."""
     try:
-        pieces = tokenize(fragment, known)
+        pieces = tokenize(fragment, vocabulary.names, vocabulary.stems)
     except Exception:
         return fragment
     edits = []
@@ -138,9 +143,9 @@ def code_part(line):
     return line
 
 
-def fix_spacing(text):
+def fix_spacing(text, vocabulary):
     lines = text.split("\n")
-    tokens = tokenize(text)
+    tokens = tokenize(text, vocabulary.names, vocabulary.stems)
 
     by_line = defaultdict(list)
     for token in tokens:

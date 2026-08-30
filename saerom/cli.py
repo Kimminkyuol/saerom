@@ -79,8 +79,9 @@ def reformat(paths, write):
             complain(path, error)
             failed += 1
             continue
+        base_dir = os.path.dirname(os.path.abspath(path))
         try:
-            formatted = format_source(source)
+            formatted = format_source(source, base_dir)
         except SaeromError as error:
             show(error, source, path)
             failed += 1

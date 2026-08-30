@@ -1,12 +1,19 @@
 """어휘 분석: 소스 -> 토큰."""
+import os
 import unicodedata
+from collections import namedtuple
 
-from .words import (PARTICLES, PARTICLES_BY_LENGTH, COPULA, COPULA_BY_LENGTH,
-                    VERB_FORMS, KEYWORDS, ADVERBS, HADA_FORMS, HADA_BY_LENGTH,
-                    DOEDA_FORMS, DOEDA_BY_LENGTH)
+from .hangul import conjugate, is_syllable
+from .words import (PARTICLES, PARTICLES_BY_LENGTH, COMPARATIVES, COPULA,
+                    COPULA_BY_LENGTH, VERB_FORMS, KEYWORDS, ADVERBS, HADA_FORMS,
+                    HADA_BY_LENGTH, DOEDA_FORMS, DOEDA_BY_LENGTH, stem_forms)
 
 
-from .errors import LexError
+from .errors import LexError, SaeromError
+
+Vocabulary = namedtuple("Vocabulary", "names stems")
+
+EMPTY = Vocabulary(frozenset(), frozenset())
 
 
 class Token:
@@ -31,7 +38,7 @@ def is_number(text):
 
 
 def split_word(chunk, line, col, end=None, allow_particle=True,
-               allow_copula=True, known=frozenset()):
+               allow_copula=True, known=frozenset(), forms=None):
     """어절 하나를 토큰으로 가른다.
 
     allow_particle=False 는 격조사를 하나만 떼게 막으면서도 몸통에서 '이다'는
@@ -47,11 +54,15 @@ def split_word(chunk, line, col, end=None, allow_particle=True,
     if chunk in ADVERBS:
         return [Token("adverb", chunk, line, col, end=end)]
 
-    if chunk in known:
+    if chunk in known or chunk in COMPARATIVES:
         return [Token("name", chunk, line, col, end=end)]
 
     if chunk in VERB_FORMS:
         name, pos, ending = VERB_FORMS[chunk]
+        return [Token("verb", name, line, col, (pos, ending, chunk), end)]
+
+    if forms and chunk in forms:
+        name, pos, ending = forms[chunk]
         return [Token("verb", name, line, col, (pos, ending, chunk), end)]
 
     for form in HADA_BY_LENGTH:
@@ -62,7 +73,7 @@ def split_word(chunk, line, col, end=None, allow_particle=True,
 
     for form in DOEDA_BY_LENGTH:
         if chunk.endswith(form) and len(chunk) > len(form):
-            name = chunk[: -len(form)] + "하다"
+            name = chunk[: -len(form)] + "되다"
             return [Token("verb", name, line, col,
                           ("passive", DOEDA_FORMS[form], chunk), end)]
 
@@ -74,7 +85,7 @@ def split_word(chunk, line, col, end=None, allow_particle=True,
         if chunk.endswith(form) and len(chunk) > len(form):
             cut = end - len(form)
             head = split_word(chunk[: -len(form)], line, col, cut,
-                              allow_particle, False, known)
+                              allow_particle, False, known, forms)
             return head + [Token("copula", "이다", line, cut,
                                  ("descriptive", COPULA[form], form), end)]
 
@@ -93,7 +104,8 @@ def split_word(chunk, line, col, end=None, allow_particle=True,
                 role, canonical = PARTICLES[form]
                 cut = end - len(form)
                 head = split_word(body, line, col, cut, allow_particle=False,
-                                  allow_copula=allow_copula, known=known)
+                                  allow_copula=allow_copula, known=known,
+                                  forms=forms)
                 return head + [Token("particle", canonical, line, cut, role, end)]
 
     return [Token("name", chunk, line, col, end=end)]
@@ -102,10 +114,12 @@ def split_word(chunk, line, col, end=None, allow_particle=True,
 ESCAPES = {"n": "\n", "t": "\t", "\\": "\\", '"': '"'}
 
 
-def tokenize(source, known=None):
+def tokenize(source, known=None, stems=frozenset(), base_dir=None):
+    """토큰 목록. known 은 이미 선언된 이름, stems 는 고유어 동사의 어간이다."""
     source = unicodedata.normalize("NFC", source).replace("\t", "    ")
     if known is None:
-        known = prescan(source)
+        known, stems = prescan(source, base_dir)
+    forms = stem_forms(frozenset(stems))
     lines = source.split("\n")
     tokens = []
     indents = [0]
@@ -195,7 +209,8 @@ def tokenize(source, known=None):
                                  (text[j] == "." and text[i].isdigit()
                                   and j + 1 < n and text[j + 1].isdigit())):
                     j += 1
-                produced += split_word(text[i:j], lineno, i, j, known=known)
+                produced += split_word(text[i:j], lineno, i, j, known=known,
+                                       forms=forms)
                 i = j
                 continue
             raise LexError(f"쓸 수 없는 글자: {ch!r}", lineno, i, i + 1)
@@ -217,13 +232,25 @@ def tokenize(source, known=None):
     return tokens
 
 
-def prescan(source):
-    """소스가 선언한 이름을 모은다. 두 번째 훑기가 이 이름들은 가르지 않는다.
+def prescan(source, base_dir=None, chain=None):
+    """소스가 선언한 이름과 고유어 동사의 어간을 모은다. 두 번째 훑기가 그
+    이름은 가르지 않고 그 어간은 활용형으로 알아본다.
 
-    어딘가에서 조사를 달고 나온 것, 그리고 '~들마다'가 도는 목록의 원소가 이름이다.
+    어간을 모르는 채로 훑으므로 정의 머리 '<어간>는 것은:' 은 아직 이름과
+    조사로 갈라져 있고, 여기서 그 모양을 찾는다.
     """
-    names = set()
+    source = unicodedata.normalize("NFC", source)
     tokens = tokenize(source, known=frozenset())
+    lines = source.replace("\t", "    ").split("\n")
+    stems = declared_stems(tokens, lines)
+    stems |= imported_stems(tokens, base_dir,
+                            set() if chain is None else chain)
+    return Vocabulary(declared_names(tokens), frozenset(stems))
+
+
+def declared_names(tokens):
+    """어딘가에서 조사를 달고 나온 것, 그리고 '~들마다'가 도는 목록의 원소가 이름이다."""
+    names = set()
     for index, token in enumerate(tokens):
         if token.kind != "name":
             continue
@@ -233,3 +260,97 @@ def prescan(source):
             if token.value.endswith("들"):
                 names.add(token.value[:-1])
     return frozenset(names)
+
+
+def declared_stems(tokens, lines):
+    """정의 머리 '<어간>는 것은:' 의 어간. '하'로 끝나면 하다 동사라 뺀다.
+
+    적힌 꼴이 그 어간의 관형현재형과 같을 때만 받는다. 그래서 ㄹ이 빠지는
+    '만들는' 같은 것은 어간이 되지 않는다.
+    """
+    stems = set()
+    for index in range(len(tokens) - 4):
+        head, particle, tail, topic, colon = tokens[index:index + 5]
+        if head.kind != "name" or head.value.endswith("하"):
+            continue
+        if not is_syllable(head.value[-1]):
+            continue
+        if particle.kind != "particle" or particle.extra != "topic":
+            continue
+        if head.line != particle.line or head.end != particle.col:
+            continue
+        if tail.kind != "name" or tail.value != "것":
+            continue
+        if topic.kind != "particle" or topic.extra != "topic":
+            continue
+        if colon.kind != "symbol" or colon.value != ":":
+            continue
+        written = lines[head.line - 1][head.col:particle.end]
+        if conjugate(head.value, "verb", "adnominal_pres") == written:
+            stems.add(head.value)
+    return stems
+
+
+def imported_modules(tokens):
+    """'<모듈>...을 가져온다.' 의 모듈 이름."""
+    names = []
+    line = []
+    for token in tokens:
+        if token.kind in ("indent", "dedent"):
+            continue
+        if token.kind != "newline":
+            line.append(token)
+            continue
+        if (len(line) >= 3 and line[0].kind == "name"
+                and line[-1].kind == "symbol" and line[-1].value == "."
+                and line[-2].kind == "verb" and line[-2].value == "가져오다"):
+            names.append(line[0].value)
+        line = []
+    return names
+
+
+def imported_stems(tokens, base_dir, chain):
+    """가져오는 모듈의 어간도 물려받는다. 토큰화가 파싱보다 먼저라서 이 파일을
+    가르기 전에 그 파일을 훑어야 한다. 파이썬 모듈은 어간을 내지 못한다."""
+    from .parser.modules import resolve_module
+
+    stems = set()
+    for name in imported_modules(tokens):
+        path = resolve_module(name, base_dir)
+        if path is not None and path.endswith(".sr"):
+            stems |= file_stems(path, chain)
+    return stems
+
+
+def file_stems(path, chain):
+    """파일 하나가 내놓는 어간. 도는 가져오기는 여기서 끊는다."""
+    from .parser.modules import stamp_of
+
+    path = os.path.abspath(path)
+    if path in chain:
+        return frozenset()
+    try:
+        stamp = stamp_of(path)
+    except OSError:
+        return frozenset()
+    cached = STEM_CACHE.get(path)
+    if cached is not None and cached[0] == stamp:
+        return cached[1]
+    try:
+        with open(path, encoding="utf-8") as handle:
+            source = handle.read()
+    except OSError:
+        return frozenset()
+
+    chain.add(path)
+    try:
+        stems = prescan(source, os.path.dirname(path), chain).stems
+    except SaeromError:
+        return frozenset()
+    finally:
+        chain.discard(path)
+    STEM_CACHE[path] = (stamp, stems)
+    return stems
+
+
+STEM_CACHE = {}

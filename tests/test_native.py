@@ -8,7 +8,7 @@ from saerom.parser import native
 from tests.support import failure, run
 
 MODULE = '''
-from saerom.extension import fail, predicate, verb
+from saerom.extension import fail, noun, predicate, verb
 
 VALUES = {"하루초": 86400}
 
@@ -35,6 +35,11 @@ def check(number):
     return number
 
 
+@verb("두배되다", "가")
+def doubled(number):
+    return number * 2
+
+
 @predicate("윤년이다", "가")
 def is_leap(year):
     return year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
@@ -43,6 +48,11 @@ def is_leap(year):
 @predicate("이상한것이다", "가")
 def strange(value):
     return value + 1
+
+
+@noun("절반")
+def half(number):
+    return number / 2
 '''
 
 
@@ -86,6 +96,17 @@ class PythonModule(unittest.TestCase):
             self.run_source("도구에서 더하기하다를 가져온다.\n"
                             '"{4를 3에 더하기한 값}"을 출력한다.'), "7")
 
+    def test_noun_is_a_field(self):
+        self.assertEqual(
+            self.run_source("도구에서 절반을 가져온다.\n"
+                            '"{9의 절반}"을 출력한다.'), "4.5")
+
+    def test_noun_takes_the_owner_alone(self):
+        self.write("틀림.py", "from saerom.extension import noun\n\n"
+                              '@noun("몫")\n'
+                              "def share(left, right):\n    return left / right\n")
+        self.assertIn("매개변수", self.fails("틀림을 가져온다.").message)
+
     def test_predicate_filters(self):
         self.assertEqual(
             self.run_source("도구에서 윤년이다를 가져온다.\n"
@@ -120,14 +141,12 @@ class PythonModule(unittest.TestCase):
                            "-1을 확인한 값을 출력한다.")
         self.assertEqual([frame.verb for frame in error.frames], ["확인하다"])
 
-    def test_repeated_particle_binds_in_order(self):
+    def test_repeated_particle_is_rejected(self):
         self.write("이음.py", "from saerom.extension import verb\n\n"
                               '@verb("이음하다", "를", "를")\n'
                               "def join(first, second):\n"
                               '    return f"{first}-{second}"\n')
-        self.assertEqual(
-            self.run_source("이음에서 이음하다를 가져온다.\n"
-                            '"{"가"를 "나"를 이음한 값}"을 출력한다.'), "가-나")
+        self.assertIn("두 번 있음", self.fails("이음을 가져온다.").message)
 
     def test_no_particles(self):
         self.write("빈것.py", "from saerom.extension import predicate, verb\n\n"
@@ -159,11 +178,17 @@ class PythonModule(unittest.TestCase):
         self.assertIn("두배하다", analysis.verbs)
         self.assertIn("윤년이다", analysis.verbs)
 
+    def test_passive_verb(self):
+        self.assertEqual(
+            self.run_source("도구에서 두배되다를 가져온다.\n"
+                            "수는 3이다.\n"
+                            '"{두배된 수}"를 출력한다.'), "6")
+
     def test_verb_name_must_end_in_hada(self):
         self.write("틀림.py", "from saerom.extension import verb\n\n"
                               '@verb("더하기", "에", "를")\n'
                               "def add(left, right):\n    return left + right\n")
-        self.assertIn("'하다'", self.fails("틀림을 가져온다.").message)
+        self.assertIn("'하다'나 '되다'", self.fails("틀림을 가져온다.").message)
 
     def test_predicate_name_must_end_in_ida(self):
         self.write("틀림.py", "from saerom.extension import predicate\n\n"

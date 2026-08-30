@@ -1,3 +1,5 @@
+import os
+import tempfile
 import unittest
 
 from tests.support import STDLIB, run
@@ -101,6 +103,34 @@ class Properties(unittest.TestCase):
                  '만약 수들의 개수이 3이면:\n'
                  '  "셋"를 출력한다.\n')
         self.assertEqual(run(messy), run(format_source(messy)))
+
+
+class Stems(unittest.TestCase):
+    """어간을 모르면 '뒤집는'이 이름과 조사로 갈라져 조사 교정이 코드를 망가뜨린다."""
+
+    TOOL = "글을 뒤집는 것은:\n    글을 돌려준다.\n"
+    USER = '도구에서 뒤집다를 가져온다.\n"가나"를 뒤집는 값을 출력한다.\n'
+
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        with open(os.path.join(self.folder.name, "도구.sr"), "w",
+                  encoding="utf-8") as handle:
+            handle.write(self.TOOL)
+
+    def tearDown(self):
+        self.folder.cleanup()
+
+    def test_defining_file_is_left_alone(self):
+        self.assertEqual(format_source(self.TOOL), self.TOOL)
+
+    def test_importing_file_is_left_alone(self):
+        self.assertEqual(format_source(self.USER, self.folder.name), self.USER)
+
+    def test_every_ending_is_left_alone(self):
+        source = self.TOOL + ('만약 "가"를 뒤집으면:\n'
+                              '    "나"를 뒤집는 값을 출력한다.\n'
+                              '"다"를 뒤집고 "라"를 뒤집는다.\n')
+        self.assertEqual(format_source(source), source)
 
 
 class Failure(unittest.TestCase):
