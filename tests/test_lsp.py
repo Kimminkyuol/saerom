@@ -1,5 +1,7 @@
 import io
 import json
+import pathlib
+import tempfile
 import unittest
 
 from saerom.lsp.analysis import Analysis, TOKEN_TYPES
@@ -111,6 +113,29 @@ class Session(unittest.TestCase):
         self.assertIn("학생", names)
         self.assertIn("소개하다", names)
         self.assertIn("철수", names)
+
+
+class ModuleChanges(unittest.TestCase):
+    """서버는 오래 살아 있다. 가져오는 모듈이 그 사이 바뀔 수 있다."""
+
+    def test_reanalysis_sees_the_new_module(self):
+        with tempfile.TemporaryDirectory() as folder:
+            here = pathlib.Path(folder)
+            helper, main = here / "도움.sr", here / "주.sr"
+            main.write_text("도움에서 두배하다를 가져온다.\n3을 두배한 값을 출력한다.\n",
+                            encoding="utf-8")
+            helper.write_text("수를 두배하는 것은:\n    수에 수를 더한 값을 돌려준다.\n",
+                              encoding="utf-8")
+            text = main.read_text(encoding="utf-8")
+
+            first = Analysis(main.as_uri(), text, str(main))
+            self.assertEqual(first.diagnostics(), [])
+
+            helper.write_text("수를 세배하는 것은:\n    수를 돌려준다.\n",
+                              encoding="utf-8")
+            again = Analysis(main.as_uri(), text, str(main))
+            self.assertEqual([d["message"] for d in again.diagnostics()],
+                             ["동사 '두배하다' 정의되지 않음"])
 
 
 class SemanticTokens(unittest.TestCase):

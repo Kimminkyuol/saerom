@@ -198,11 +198,22 @@ class Interpreter(ExpressionMixin):
                 handle.stream.close()
 
     def run_loop(self, node):
+        """반복문 하나를 돈다.
+
+        '번째'는 반복문에 딸린 이름이라 안쪽 반복문이 바깥쪽 것을 덮어써서는
+        안 되고, 반복문을 벗어나면 없어져야 한다. 갈래를 가리지 않고 여기서
+        한 번에 넣었다 뺀다.
+        """
+        outer = self.scope.get("번째")
         self.loops += 1
         try:
             self.walk_loop(node)
         finally:
             self.loops -= 1
+            if outer is None:
+                self.scope.pop("번째", None)
+            else:
+                self.scope["번째"] = outer
 
     def walk_loop(self, node):
         if node.kind == "while":
@@ -228,15 +239,10 @@ class Interpreter(ExpressionMixin):
             if not isinstance(values, list):
                 raise SaeromError("'마다' 앞이 목록이 아님")
 
-        outer = self.scope.get("번째")
         for index, value in enumerate(values, 1):
             self.scope[node.variable] = value
             if not self.run_body(node.body, index):
                 break
-        if outer is None:
-            self.scope.pop("번째", None)
-        else:
-            self.scope["번째"] = outer
 
     def run_body(self, body, index):
         self.scope["번째"] = index

@@ -34,7 +34,7 @@ def split_word(chunk, line, col, end=None, allow_particle=True,
                allow_copula=True, known=frozenset()):
     """Split one whitespace-delimited chunk into tokens (see docs/rules.md 2.2).
 
-    allow_particle=False forbids stripping another case particle, keeping rule 3
+    allow_particle=False forbids stripping another case particle, keeping rule 6
     (at most one) while still re-analysing the body for a copula.
     allow_copula=False stops '성인인' from splitting twice into 성 + 인 + 인.
     """
@@ -47,7 +47,7 @@ def split_word(chunk, line, col, end=None, allow_particle=True,
     if chunk in ADVERBS:
         return [Token("adverb", chunk, line, col, end=end)]
 
-    # docs/rules.md 2.2 (1): a chunk that is already a declared name is not cut.
+    # docs/rules.md 2.2 (2): a chunk that is already a declared name is not cut.
     # Without this, {나이} splits into 나 + 이.
     if chunk in known:
         return [Token("name", chunk, line, col, end=end)]
@@ -231,7 +231,7 @@ def tokenize(source, known=None):
 
 def prescan(source):
     """Collect the names a source declares, so the second pass can honour
-    docs/rules.md 2.2 (1) and leave them whole.
+    docs/rules.md 2.2 (2) and leave them whole.
 
     A name is anything that carries a particle somewhere, plus the 원소 of any
     collection walked by '~들마다'.

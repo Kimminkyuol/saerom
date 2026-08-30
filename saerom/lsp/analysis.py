@@ -4,7 +4,7 @@ import os
 from ..errors import SaeromError
 from ..lexer import prescan, tokenize
 from ..nodes import Call, Declare, DefineStmt, Name, Node, PassiveCall, RecordType
-from ..parser import make_parser
+from ..parser import forget_modules, make_parser
 from ..words import BUILTIN_SIGNATURES
 from .completion import CompletionMixin
 from .tokens import TOKEN_MODIFIERS, TOKEN_TYPES, TokenMixin  # noqa: F401
@@ -38,6 +38,10 @@ class Analysis(TokenMixin, CompletionMixin):
         self._analyse()
 
     def _analyse(self):
+        # 서버는 오래 살아 있고 그 사이 가져오는 모듈이 바뀔 수 있다. 파서가
+        # 들고 있는 것은 한 번 훑는 동안만 쓴다. (파이썬 모듈은 그대로 둔다.
+        # 글자를 칠 때마다 남의 파이썬 코드를 다시 실행할 수는 없다.)
+        forget_modules()
         try:
             self.tokens = tokenize(self.text)
         except SaeromError as error:

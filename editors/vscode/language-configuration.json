@@ -10,7 +10,7 @@
   "wordPattern": "[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9_]+",
   "indentationRules": {
     "increaseIndentPattern": ":\\s*(#.*)?$",
-    "decreaseIndentPattern": "^\\s*(아니면|아니고 만약|실패하면|끝으로)\\b"
+    "decreaseIndentPattern": "^\\s*(아니면|아니고 만약|실패하면|끝으로)(?![가-힣])"
   },
   "onEnterRules": [
     {

@@ -66,7 +66,7 @@ def build(interp):
     def sort_in_place(a):
         target = a["를"]
         if not isinstance(target, list):
-            raise SaeromError("'정렬하다'의 인자가 목록이 아님")
+            raise ValueError_("'정렬하다'의 '~를' 자리가 목록이 아님")
         spec = a.get("로")
         if isinstance(spec, SortKey):
             target.sort(key=lambda item: sort_key(spec.of(item)),
@@ -79,9 +79,8 @@ def build(interp):
         return (0, value, "") if isinstance(value, (int, float)) else (1, 0, to_text(value))
 
     def append(a):
+        # add 에서만 부른다. '~에' 자리가 목록인지는 거기서 이미 보았다.
         target = a["에"]
-        if not isinstance(target, list):
-            raise SaeromError("'더하다'의 '~에' 자리가 목록이 아님")
         if isinstance(a["를"], list):
             target.extend(a["를"])
         else:

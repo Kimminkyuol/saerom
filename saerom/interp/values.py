@@ -155,4 +155,7 @@ def check_numbers(verb, *values):
                 f"'{verb}'의 인자가 수가 아님: {kind_of(value)} {show(value)}")
 
 
-ORDINALS = {"첫째": 0, "둘째": 1, "셋째": 2, "넷째": 3, "다섯째": 4}
+# 우리말 차례매김수. '<수>번째' 와 같은 자리를 가리킨다.
+ORDINALS = {name: index for index, name in enumerate(
+    ("첫째", "둘째", "셋째", "넷째", "다섯째",
+     "여섯째", "일곱째", "여덟째", "아홉째", "열째"))}

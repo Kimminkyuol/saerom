@@ -1,11 +1,11 @@
 """Syntactic analysis: tokens -> syntax tree."""
 from ..lexer import prescan, tokenize
 from .base import VerbInfo
-from .modules import MODULES, STDLIB, parse_file, resolve_module
+from .modules import MODULES, STDLIB, forget_modules, parse_file, resolve_module
 from .statements import StatementParser
 
-__all__ = ["Parser", "VerbInfo", "MODULES", "STDLIB", "make_parser", "parse",
-           "parse_file", "resolve_module"]
+__all__ = ["Parser", "VerbInfo", "MODULES", "STDLIB", "forget_modules", "make_parser",
+           "parse", "parse_file", "resolve_module"]
 
 
 class Parser(StatementParser):

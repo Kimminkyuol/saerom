@@ -17,7 +17,10 @@ from .modules import fits
 class PhraseParser(ParserBase):
     """구절·호출·표현."""
 
-    VALUE_KEYWORDS = {"참", "거짓", "빈목록", "번째", "이유", "결과"}
+    # 예약어지만 값을 담고 있어 이름처럼 읽는 것들 (반복문의 차례, 예외의 이유,
+    # 예외처리문의 결과). 아래 VALUE_KEYWORDS 가 이 표를 그대로 물려받는다.
+    NAME_KEYWORDS = {"번째", "이유", "결과"}
+    VALUE_KEYWORDS = {"참", "거짓", "빈목록"} | NAME_KEYWORDS
     COLLECTION_ADVERBS = {"각각", "모두", "가장", "하나라도"}
 
     def take_verb(self):
@@ -254,7 +257,7 @@ class PhraseParser(ParserBase):
                 self.next(); return Literal(value=False)
             if token.value == "빈목록":
                 self.next(); return ListExpr(items=[])
-            if token.value in ("번째", "줄", "이유", "결과"):
+            if token.value in self.NAME_KEYWORDS:
                 self.next(); return Name(name=token.value, **self.where(token))
         if token.kind == "name":
             self.next()

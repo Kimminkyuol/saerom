@@ -158,7 +158,7 @@ class StatementParser(PhraseParser):
 
     def absorb(self, other, module, names):
         """가져온 쪽의 조사 자리를 물려받는다. 그래야 구절을 몇 개까지
-        가져갈지 알 수 있다 (docs/rules.md 7.1)."""
+        가져갈지 알 수 있다 (docs/rules.md 3.3)."""
         if names is None:
             self.known |= {module}
             self.module_names.add(module)

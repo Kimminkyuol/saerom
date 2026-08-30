@@ -7,7 +7,7 @@ from .hangul import decompose, conjugate, allomorph
 
 # The order particles are listed in when we show how a verb may be called.
 PARTICLE_ORDER = ["가", "의", "에서", "에게", "에", "를", "로", "보다", "와",
-                  "부터", "까지", "만큼", "씩", "중", "마다"]
+                  "부터", "까지", "만큼", "중", "마다"]
 
 # 어미를 사람이 읽는 이름으로.
 ENDING_NAMES = {
@@ -165,6 +165,8 @@ def describe_signature(verb, particles):
     if verb in BUILTINS:
         stem, pos, overrides = BUILTINS[verb]
         surface = overrides.get("final") or conjugate(stem, pos, "final")
+    elif verb.endswith("이다"):
+        surface = verb          # 술어의 사전형이 이미 종결형이다
     else:
         surface = conjugate(verb[:-1], "verb", "final")
     slots = " ".join(f"~{p}" for p in ordered)

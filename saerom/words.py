@@ -119,7 +119,7 @@ KEYWORDS = {
 
 # Adverbs. They are NOT part of a verb's name -- 각각 can sit apart from its
 # verb (숫자들을 각각 2로 나눈 값들) -- so they stay separate tokens and select
-# how a verb applies to a collection (docs/rules.md 10).
+# how a verb applies to a collection (docs/rules.md 6.2).
 ADVERBS = {"모두", "각각", "가장", "하나라도"}
 
 # Any user verb is "noun + 하다", so its conjugation is fully predictable.
@@ -133,7 +133,7 @@ HADA_FORMS = {
 HADA_BY_LENGTH = sorted(HADA_FORMS, key=len, reverse=True)
 
 # Passive: 정렬하다 -> 정렬되다. Marks a call that copies its target instead
-# of mutating it (docs/rules.md 11).
+# of mutating it (docs/rules.md 8).
 DOEDA_FORMS = {
     "된다": "final", "되는": "adnominal_pres", "된": "adnominal_past",
     "되면": "conditional", "되고": "conjunctive", "되는지": "interrogative",
@@ -163,7 +163,7 @@ BUILTIN_SIGNATURES = {
     "나누다": [{"를", "로"}],
     "크다": [{"가", "보다"}],
     "작다": [{"가", "보다"}],
-    "같다": [{"가", "와"}, {"가", "보다"}],
+    "같다": [{"가", "와"}],
     "시작하다": [{"가", "로"}],
     "담다": [{"가", "를"}],
     "끝나다": [{"가", "로"}],

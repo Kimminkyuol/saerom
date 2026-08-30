@@ -27,6 +27,16 @@ def fits(used, signature):
     return True
 
 
+def forget_modules():
+    """읽어 둔 .sr 모듈을 잊는다.
+
+    한 번 읽은 모듈을 다시 읽지 않는 것은 한 프로그램을 실행하는 동안의
+    약속이다. 편집기처럼 같은 프로세스가 계속 살아 있는 곳에서는 파일이
+    바뀌었을 수 있으므로, 다시 훑기 전에 이것을 부른다.
+    """
+    MODULES.clear()
+
+
 def resolve_module(name, base_dir):
     """<이름>.sr 이나 <이름>.py 를 찾는다. 옆자리 먼저, 그 다음 기본모듈."""
     wanted = [unicodedata.normalize("NFC", name + suffix)

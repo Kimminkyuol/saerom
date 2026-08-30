@@ -187,6 +187,22 @@ class Lists(unittest.TestCase):
         self.check("수들의 마지막", "4")
         self.check("수들의 2번째", "8")
 
+    def test_reduce_of_an_empty_list_uses_the_identity(self):
+        """원소가 없으면 셈을 한 번도 하지 않으므로 그 동사의 항등원을 낸다."""
+        self.assertEqual(run("빈목록을 모두 더한 값을 출력한다."), "0")
+        self.assertEqual(run("빈목록을 모두 곱한 값을 출력한다."), "1")
+        self.assertEqual(run("빈목록을 모두 이은 값을 출력한다."), "")
+
+    def test_reduce_of_an_empty_list_without_an_identity(self):
+        error = failure("앞에 뒤를 겹치하는 것은:\n    앞을 돌려준다.\n"
+                        "빈목록을 모두 겹치한 값을 출력한다.")
+        self.assertIn("겹치하다", error.message)
+
+    def test_native_ordinals(self):
+        self.assertEqual(
+            run("수들은 [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]이다.\n"
+                '"{수들의 여섯째}{수들의 아홉째}{수들의 열째}"를 출력한다.'), "6910")
+
     def test_field_out_of_range(self):
         for expression in ("빈목록의 첫째", "빈목록의 마지막", "수들의 5번째",
                            '""의 첫째', '""의 마지막'):
@@ -234,6 +250,36 @@ class LoopControl(unittest.TestCase):
                 "        빠져나간다.\n"
                 '    "안"을 출력한다.\n'
                 "1부터 2까지의 수들마다 반복한다:\n    수를 재주한다."), "안안")
+
+
+class LoopIndex(unittest.TestCase):
+    """'번째'는 반복문에 딸린 이름이다."""
+
+    def test_counts_each_round(self):
+        self.assertEqual(
+            run('이름들은 ["가", "나"]이다.\n이름들마다 반복한다:\n'
+                '    "{번째}{이름}"을 출력한다.'), "1가2나")
+
+    def test_a_while_loop_counts_too(self):
+        self.assertEqual(
+            run("남은것은 3이다.\n남은것이 0보다 큰 동안 반복한다:\n"
+                '    "{번째}"를 출력한다.\n'
+                "    남은것은 남은것에서 1을 뺀 값이다."), "123")
+
+    def test_an_inner_loop_does_not_clobber_the_outer_one(self):
+        self.assertEqual(
+            run('이름들은 ["가", "나"]이다.\n이름들마다 반복한다:\n'
+                "    남은것은 2이다.\n"
+                "    남은것이 0보다 큰 동안 반복한다:\n"
+                "        남은것은 남은것에서 1을 뺀 값이다.\n"
+                '    "{번째}"를 출력한다.'), "12")
+
+    def test_gone_after_the_loop(self):
+        for loop in ("1부터 2까지의 수들마다 반복한다:\n    1을 출력한다.\n",
+                     "남은것은 1이다.\n남은것이 0보다 큰 동안 반복한다:\n"
+                     "    남은것은 0이다.\n"):
+            with self.subTest(loop=loop):
+                self.assertEqual(failure(loop + "번째를 출력한다.").kind, "이름 오류")
 
 
 class Predicates(unittest.TestCase):
@@ -481,6 +527,20 @@ class Errors(unittest.TestCase):
                         '철수는 이름이 "가"인 학생이다.\n철수의 점수를 출력한다.')
         self.assertEqual(error.kind, "이름 오류")
         self.assertIn("이름", error.hint)
+
+    def test_predicate_signature_is_not_conjugated_as_a_verb(self):
+        """술어의 사전형은 이미 '-이다'로 끝난다. '배수인다'가 되면 안 된다."""
+        error = failure("수가 나눌수의 배수인 것은:\n    참을 돌려준다.\n"
+                        "만약 3이 4로 배수이면:\n    1을 출력한다.")
+        self.assertEqual(error.kind, "조사 오류")
+        self.assertIn("~가 ~의 배수이다", error.hint)
+
+    def test_sorting_a_non_list(self):
+        self.assertEqual(failure('"가나"를 정렬한다.').kind, "값 오류")
+
+    def test_adding_a_list_to_a_number(self):
+        self.assertEqual(failure("수들은 [1]이다.\n1에 수들을 더한 값을 출력한다.").kind,
+                         "값 오류")
 
     def test_divide_by_zero(self):
         self.assertEqual(failure("1을 0으로 나눈 값을 출력한다.").kind, "산술 오류")

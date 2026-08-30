@@ -10,6 +10,10 @@ from .values import (ORDINALS, Module, Record, SortKey, kind_of,
                      signature_of, to_text, truthy)
 
 
+# 빈 목록을 '모두 ~한 값'으로 모을 때 내놓을 값. 셈의 항등원이다.
+FOLD_IDENTITY = {"더하다": 0, "곱하다": 1}
+
+
 class ExpressionMixin(CallMixin):
     """식 하나를 값으로."""
 
@@ -253,7 +257,13 @@ class ExpressionMixin(CallMixin):
         if whole is not None:
             return self.apply(verb, {**extra, "를": source}, node.line)
         if not source:
-            return 0
+            # 원소가 없으면 셈을 한 번도 하지 않으므로, 그 동사의 '아무것도
+            # 더하지 않은 값'이 무엇인지 알아야 한다. 셈의 항등원이 정해진
+            # 동사만 답할 수 있다.
+            if verb in FOLD_IDENTITY:
+                return FOLD_IDENTITY[verb]
+            raise SaeromError(f"빈 목록을 '{verb}'로 모을 수 없음", node.line,
+                              hint="원소가 없을 때의 값이 정해져 있지 않음")
         signature = self.two_slot_signature(verb)
         if signature is None:
             raise SaeromError(f"'{verb}'로 모을 수 없음", node.line)
@@ -333,6 +343,11 @@ class ExpressionMixin(CallMixin):
                 if self.lookup(name, args) is not None:
                     value = self.apply(name, args, node.line)
                     return not truthy(value) if node.negated else value
+                # 그 이름의 술어는 있는데 조사가 맞지 않는다. 값으로도 읽을 수
+                # 없다면 '이름이 없다'가 아니라 조사가 틀렸다고 말해야 한다.
+                bare = name[:-len("이다")]
+                if bare not in self.scope and bare not in self.globals:
+                    raise self.unknown_call(name, args, node.line)
 
         # 같은 조사가 여럿일 수 있으므로 적은 차례를 지킨 짝으로 넘긴다.
         pairs = [(particle, self.evaluate(expr)) for particle, expr in node.slots]

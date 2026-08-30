@@ -1,7 +1,7 @@
 """Formatting: put a source file into its canonical shape.
 
 The one thing a Korean language can do that others cannot is fix the
-programmer's particles for them. docs/rules.md 4.1 says 을/를 and friends are all
+programmer's particles for them. docs/rules.md 3.2 says 을/를 and friends are all
 valid, and that the formatter settles the spelling -- but only after a name.
 A string's particle is chosen by how the string reads aloud, which no compiler
 can judge, so those are left exactly as written.
@@ -73,7 +73,7 @@ def fix_particles(text):
         if index == 0:
             continue
         previous = tokens[index - 1]
-        # Only right after a name, with nothing in between (docs/rules.md 4.1).
+        # Only right after a name, with nothing in between (docs/rules.md 3.2).
         if previous.kind not in CORRECTABLE:
             continue
         if previous.line != token.line or previous.end != token.col:
