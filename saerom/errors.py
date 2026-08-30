@@ -1,15 +1,13 @@
-"""Errors: what went wrong, where, and how the program got there."""
+"""오류: 무엇이 어긋났고, 어디서, 어떤 길로 왔는가."""
 import os
 import sys
 import unicodedata
 
 from .hangul import decompose, conjugate, allomorph
 
-# The order particles are listed in when we show how a verb may be called.
 PARTICLE_ORDER = ["가", "의", "에서", "에게", "에", "를", "로", "보다", "와",
                   "부터", "까지", "만큼", "씩", "중", "마다"]
 
-# 어미를 사람이 읽는 이름으로.
 ENDING_NAMES = {
     "final": "-ㄴ다", "adnominal_past": "-ㄴ", "adnominal_pres": "-는",
     "conditional": "-면", "conjunctive": "-고", "alternative": "-거나",
@@ -23,12 +21,12 @@ def ending_name(ending):
 
 
 def display_width(text):
-    """Columns a string occupies in a terminal. Hangul takes two."""
+    """터미널에서 차지하는 칸. 한글은 두 칸이다."""
     return sum(2 if unicodedata.east_asian_width(ch) in "WF" else 1 for ch in text)
 
 
 class Frame:
-    """One entry of the 호출 스택."""
+    """호출 스택의 한 칸."""
     __slots__ = ("verb", "line")
 
     def __init__(self, verb, line):
@@ -44,11 +42,11 @@ class SaeromError(Exception):
         self.hint = hint
         self.frames = []
         self.path = None
-        self.source = None      # 모듈 안에서 난 오류는 제 소스를 들고 다닌다
+        self.source = None
         super().__init__(message)
 
     def locate(self, node):
-        """Fill in whatever position we are still missing from a syntax node."""
+        """아직 모르는 자리를 구문 마디에서 채운다."""
         if node is None:
             return self
         line = getattr(node, "line", None)
@@ -96,25 +94,18 @@ class RecursionError_(SaeromError):
 
 
 class Raised(SaeromError):
-    """An 오류 raised by 새롬 code with '~라는 오류를 낸다'."""
+    """'~라는 오류를 낸다' 가 낸 오류."""
     def __init__(self, message, line=None, col=None, end=None):
         super().__init__(message, line, col, end, "예외")
 
 
-# --- 비슷한 이름 찾기 -----------------------------------------------------
-
 def quote(word, role="subject"):
-    """'반복횟수' + 주격  ->  "'반복횟수'가".
-
-    The language corrects particle allomorphs for the programmer, so its own
-    messages had better get them right too.
-    """
+    """'반복횟수' + 주격  ->  "'반복횟수'가"."""
     return f"'{word}'{allomorph(word, role)}"
 
 
 def jamo(word):
-    """Spell a word out in jamo so 회 and 횟 differ by one, not by a whole
-    syllable. That is what makes '반복회수' → '반복횟수' a close match."""
+    """낱말을 자모로 편다. 회와 횟이 음절 하나가 아니라 자모 하나 차이가 된다."""
     out = []
     for ch in word:
         parts = decompose(ch)
@@ -134,7 +125,7 @@ def distance(left, right):
 
 
 def suggest(word, candidates):
-    """The closest candidate, if one is close enough to be worth naming."""
+    """가장 가까운 이름. 말할 만큼 가깝지 않으면 None."""
     spelled = jamo(word)
     limit = max(2, len(spelled) // 3)
     best, best_score = None, limit + 1
@@ -148,10 +139,7 @@ def suggest(word, candidates):
 
 
 def describe_signature(verb, particles):
-    """'더하다' + {(에,1), (를,1)}  ->  '~에 ~를 더한다'
-
-    시그니처는 (조사, 갯수) 짝의 모음이다. 같은 조사가 여럿이면 그만큼 늘어놓는다.
-    """
+    """'더하다' + {(에,1), (를,1)}  ->  '~에 ~를 더한다'."""
     from .words import BUILTINS
     spread = []
     for item in particles:
@@ -165,16 +153,13 @@ def describe_signature(verb, particles):
     if verb in BUILTINS:
         stem, pos, overrides = BUILTINS[verb]
         surface = overrides.get("final") or conjugate(stem, pos, "final")
+    elif verb.endswith("이다"):
+        surface = verb
     else:
         surface = conjugate(verb[:-1], "verb", "final")
     slots = " ".join(f"~{p}" for p in ordered)
     return f"{slots} {surface}".strip()
 
-
-# --- 보여주기 -------------------------------------------------------------
-#
-# 파이썬의 트레이스백을 그대로 옮겼다. 이미 그 모양에 익숙한 사람이 많고,
-# 편집기와 터미널이 'File "x", line N' 꼴을 눌러서 열어 주기도 한다.
 
 SYNTAX_KINDS = ("어휘 오류", "구문 오류")
 
@@ -184,11 +169,7 @@ def colored(text, code, enabled):
 
 
 def call_frames(error):
-    """호출 스택을 파이썬의 프레임 꼴로 옮긴다.
-
-    쌓아 둔 것은 (부른 동사, 부른 자리) 지만, 파이썬은 프레임마다
-    '그 프레임이 지금 실행 중인 줄'을 보여 준다. 그래서 한 칸씩 밀어 준다.
-    """
+    """쌓아 둔 (부른 동사, 부른 자리)를 (동사, 그 안에서 실행 중인 줄)로 한 칸 민다."""
     frames = error.frames
     if not frames:
         return [("<맨바깥>", error.line)]

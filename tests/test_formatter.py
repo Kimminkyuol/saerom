@@ -18,20 +18,22 @@ class Particles(unittest.TestCase):
         ("숫자과 값을 잇는다.\n", "숫자와 값을 잇는다.\n"),
     ]
 
-    LEFT_ALONE = [
-        '"beer"을 출력한다.\n',        # 문자열 뒤는 검사하지 않는다
-        '"wall"를 출력한다.\n',
-        "3를 출력한다.\n",             # 수 뒤도 마찬가지
-        "1부터 100까지의 숫자들마다 반복한다:\n    참\n",   # 겹조사
-    ]
+    AFTER_A_LITERAL = ['"beer"을 출력한다.\n', '"wall"를 출력한다.\n',
+                       "3를 출력한다.\n"]
+    STACKED_PARTICLES = ["1부터 100까지의 숫자들마다 반복한다:\n    참\n"]
 
     def test_corrected(self):
         for source, wanted in self.CASES:
             with self.subTest(source=source):
                 self.assertEqual(format_source(source), wanted)
 
-    def test_left_alone(self):
-        for source in self.LEFT_ALONE:
+    def test_after_a_literal_is_left_alone(self):
+        for source in self.AFTER_A_LITERAL:
+            with self.subTest(source=source):
+                self.assertEqual(format_source(source), source)
+
+    def test_stacked_particles_are_left_alone(self):
+        for source in self.STACKED_PARTICLES:
             with self.subTest(source=source):
                 self.assertEqual(format_source(source), source)
 
@@ -53,17 +55,21 @@ class Layout(unittest.TestCase):
         ("숫자를 출력한다. # 하나\n", "숫자를 출력한다.  # 하나\n"),
         ("숫자를 출력한다.   \n\n\n", "숫자를 출력한다.\n"),
         ("", ""),
-        # 주석이 붙어도 끝난 문장이다
+    ]
+
+    COMMENTS = [
         ("만약 참이면:\n  참  # 하나\n  거짓\n",
          "만약 참이면:\n    참  # 하나\n    거짓\n"),
-        # 문자열 안의 # 은 주석이 아니다
         ('"# 우물정"을 출력한다.\n', '"# 우물정"을 출력한다.\n'),
-        # 줄 맞춘 주석은 그대로 둔다
         ("숫자를 출력한다.          # 줄 맞춤\n",
          "숫자를 출력한다.          # 줄 맞춤\n"),
-        # 주석만 있는 줄은 뒤따르는 문장에 맞춘다
         ("만약 참이면:\n  # 설명\n  참\n", "만약 참이면:\n    # 설명\n    참\n"),
     ]
+
+    def test_comments(self):
+        for source, wanted in self.COMMENTS:
+            with self.subTest(source=source):
+                self.assertEqual(format_source(source), wanted)
 
     def test_all(self):
         for source, wanted in self.CASES:

@@ -27,7 +27,6 @@ class PhraseParser(ParserBase):
         negated = False
         name = token.value
         if name == "아니다":
-            # '~가 아닌' 은 '~인' 을 뒤집은 것이다. 같은 길로 보낸다.
             return VerbInfo("이다", "descriptive", ending, surface, True,
                             token.line, token.col, token.end)
         if ending == "negative":
@@ -48,11 +47,10 @@ class PhraseParser(ParserBase):
         return self.next()
 
     def push(self, slots, first):
-        """One 구절: a 목록식 (A와 B와 C), an optional 의-chain, then its particle.
+        """구절 하나: 목록식 (A와 B와 C), '의' 이음, 그다음 조사.
 
-        The 와/과 continuation lives here rather than in a separate expression
-        rule because `first` may be a freshly reduced call -- otherwise
-        `A에서 B를 뺀 값과 C를` would read 과 as the call's own case particle.
+        와/과 이음이 여기 있는 까닭은 `first` 가 방금 줄인 호출일 수 있어서다.
+        따로 두면 'A에서 B를 뺀 값과 C를'의 '과'를 그 호출의 격조사로 읽는다.
         """
         items = [self.chain(first)]
         while (self.at("particle") and self.peek().extra == "conj"
@@ -65,7 +63,6 @@ class PhraseParser(ParserBase):
         slots.append((None, value))
         if self.at("particle"):
             particle = self.next()
-            # '수학의 ~한 값' — 모듈 뒤의 '의'는 인자가 아니라 이름공간 표지다.
             if (particle.value == "의" and isinstance(value, Name)
                     and value.name in self.module_names):
                 slots[-1] = ("모듈", value)
@@ -81,7 +78,7 @@ class PhraseParser(ParserBase):
 
     @classmethod
     def starts_value(cls, token):
-        """Could this token begin a value? Decides whether 와/과 joins a list."""
+        """값을 시작할 수 있는 토큰인가. 와/과가 목록을 잇는지 가른다."""
         if token.kind in ("number", "string", "template", "name"):
             return True
         if token.kind == "keyword":
@@ -89,15 +86,15 @@ class PhraseParser(ParserBase):
         return token.kind == "symbol" and token.value == "["
 
     def chain(self, value):
-        """Attach any 의-properties to one item, not to the whole 목록식.
+        """'의' 로 이어지는 필드를 목록식 전체가 아니라 원소 하나에 붙인다.
 
-        A module name is left alone: in '12와 18의 수학의 최대공약수구한 값'
-        the second 의 marks a namespace, not a property of 18.
+        모듈 이름은 건드리지 않는다. '12와 18의 수학의 최대공약수구한 값'의 두 번째
+        '의'는 18의 필드가 아니라 이름공간 표지다. '3의 배수인지' 는 술어이고
+        '목록의 개수이다' 는 속성이다.
         """
         while (self.at("particle") and self.peek().value == "의"
                and self.peek(1).kind == "name" and self.peek(1).value not in CALL_TAILS
                and self.peek(1).value not in self.module_names
-               # '3의 배수인지' 는 술어, '목록의 개수이다' 는 속성이다.
                and not (self.peek(2).kind == "copula"
                         and self.peek(2).extra[1] != "final")):
             self.next()
@@ -106,13 +103,11 @@ class PhraseParser(ParserBase):
         return value
 
     def split_slots(self, verb, slots):
-        """How many pending slots this verb may take.
+        """이 용언이 가져갈 수 있는 구절은 몇 개인가.
 
-        Korean lets a call's arguments sit in front of it, but the slots piled
-        up so far may belong to an outer verb too. We hand the verb the longest
-        trailing run whose particles fit one of its signatures, and leave the
-        rest pending -- that is what makes '학생들에 줄들을 해석한 값을 더한다'
-        give 줄들을 to 해석하다 and 학생들에 to 더하다.
+        앞에 쌓인 구절이 바깥 용언의 것일 수도 있다. 시그니처에 들어맞는 가장 긴
+        꼬리만 넘기고 나머지는 남긴다. 그래서 '학생들에 줄들을 해석한 값을 더한다'가
+        '줄들을'은 해석하다에, '학생들에'는 더하다에 간다.
         """
         signatures = self.signatures.get(verb)
         if not signatures:
@@ -138,14 +133,16 @@ class PhraseParser(ParserBase):
         slots[last] = (None, slots[last][1])
         return slots
 
+    def takes_every_slot(self, info, adverbs):
+        """'이다'가 어떤 술어로 풀릴지는 실행 때 갈리고, 피동은 머리 명사에서,
+        모음 부사는 '~들을' 자리에서 대상을 받는다. 어느 쪽도 조사 자리를
+        미리 나눌 수 없다."""
+        return (info.name == "이다" or info.pos == "passive"
+                or bool(self.COLLECTION_ADVERBS & set(adverbs)))
+
     def reduce(self, slots, adverbs, info):
-        """Turn pending slots plus an adnominal verb into an expression."""
-        # '이다'가 어떤 술어로 풀릴지는 실행 때 정해진다. 조사 자리를 미리 나눌 수 없다.
-        if (info.name == "이다" or info.pos == "passive"
-                or self.COLLECTION_ADVERBS & set(adverbs)):
-            # A 피동 fills its target from the head noun, and a 부사 turns the
-            # '~들을' slot into the collection being walked. Neither is an
-            # ordinary argument, so signature matching does not apply.
+        """쌓인 구절과 관형형 용언 하나를 식으로 만든다."""
+        if self.takes_every_slot(info, adverbs):
             kept = []
         else:
             kept, slots = self.split_slots(info.name, slots)
@@ -159,25 +156,20 @@ class PhraseParser(ParserBase):
         follows_name = token.kind == "name"
         tail = token.value if follows_name and token.value in CALL_TAILS else None
 
-        # '~들 중 <관형절>인 것들' 에서 '것들'은 꼬리가 아니라 걸러내기의 원소다.
         if (follows_name and token.value in ("것", "것들")
                 and any(particle == "중" for particle, _ in slots)):
             tail = None
 
-        # <관형절> 순으로 — a sort key, not a filter over something called 순
         if follows_name and token.value == "순":
             self.next()
             key = [expr for particle, expr in slots if particle == "가"]
-            # 기준이 없으면 원소 자체가 기준이다: '큰 순으로 정렬된 수들'
             return SortSpec(key=key[0] if key else None,
                             descending=(info.name == "크다"), line=info.line)
 
-        # 실패한 이유 — the message of the exception being handled
         if info.name == "실패하다" and follows_name and token.value == "이유":
             self.next()
             return Name(name="이유")
 
-        # 관형절 + 이름:  걸러내기, 또는 피동 호출
         if follows_name and tail is None:
             head = self.next().value
             partitive = [expr for particle, expr in slots if particle == "중"]
@@ -346,7 +338,6 @@ class PhraseParser(ParserBase):
         while True:
             token = self.peek()
 
-            # 조건 자리의 '아니면'은 else가 아니라 '아니다'의 조건형이다.
             if token.kind == "keyword" and token.value == "아니면" and slots:
                 token = Token("verb", "아니다", token.line, token.col,
                               ("descriptive", "conditional", "아니면"), token.end)

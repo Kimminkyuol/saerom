@@ -61,7 +61,8 @@ class StatementParser(PhraseParser):
         return None
 
     def declaration(self, target, line):
-        # 틀 선언 / 블록 틀 만들기:  X는 이런 (것|<틀>)이다:
+        """선언문. 'X는 이런 것이다:' 는 구조체 선언, 'X는 이런 <틀>이다:' 는
+        블록으로 구조체 만들기다."""
         if self.at("keyword", "이런"):
             self.next()
             type_name = self.expect("name").value
@@ -157,8 +158,8 @@ class StatementParser(PhraseParser):
                           line=start.line)
 
     def absorb(self, other, module, names):
-        """가져온 쪽의 조사 자리를 물려받는다. 그래야 구절을 몇 개까지
-        가져갈지 알 수 있다 (docs/rules.md 7.1)."""
+        """가져온 쪽의 조사 자리를 물려받는다. 그래야 그 용언이 구절을 몇 개까지
+        가져갈지 알 수 있다."""
         if names is None:
             self.known |= {module}
             self.module_names.add(module)
@@ -319,12 +320,10 @@ class StatementParser(PhraseParser):
 
                 if aux is not None and info.name in ("보다", "두다") and info.ending == "final":
                     if info.name == "보다":
-                        # '해 본다:' 는 블록 전체를 시도한다.
                         call = None if (aux.name == "하다" and not slots) else Call(
                             verb=aux.name, slots=slots, adverbs=[], negated=False,
                             tail=None, line=aux.line)
                         return self.try_statement(call, aux.line)
-                    # 자원문의 '로' 자리는 열어 둔 것을 묶을 이름이다.
                     name = "파일"
                     kept = []
                     for particle, expr in slots:

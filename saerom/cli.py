@@ -1,4 +1,4 @@
-"""Command line interface."""
+"""명령줄."""
 import os
 import sys
 import traceback
@@ -59,7 +59,6 @@ def execute(path):
         show(error, source, path)
         return 1
     except KeyboardInterrupt:
-        # sys.stderr.write("\n중단\n")
         return 130
     except Exception:
         sys.stdout.flush()

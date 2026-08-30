@@ -1,4 +1,4 @@
-"""암호 — 파이썬으로 적은 새롬 모듈. (docs/tools.md 4)"""
+"""암호 — 파이썬으로 적은 새롬 모듈."""
 import base64
 import hashlib
 

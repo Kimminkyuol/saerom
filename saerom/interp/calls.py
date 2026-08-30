@@ -7,7 +7,6 @@ from .values import (Break, Continue, Module, NativeFunction, Return,
 
 MAX_DEPTH = 200
 
-# 이름공간을 가리키는 자리. 인자가 아니다.
 NAMESPACE = frozenset(("모듈", "의"))
 
 
@@ -23,10 +22,9 @@ class CallMixin:
                 list(self.functions) + list(self.builtins) if verb == name]
 
     def apply(self, name, args, line=None):
+        """이름과 조사로 동사를 골라 부른다. NAMESPACE 자리는 인자가 아니라
+        이름공간이다: '수학의 제곱근구한 값'."""
         pairs = list(args.items()) if isinstance(args, dict) else list(args)
-
-        # 조사를 모으면서 모듈 자리를 함께 살핀다.
-        # '수학의 제곱근구한 값' — 모듈 자리는 인자가 아니라 이름공간이다.
         particles, module = [], None
         for particle, value in pairs:
             particles.append(particle)
@@ -96,6 +94,7 @@ class CallMixin:
             f"'{name}'를 조사 {used}로 부를 수 없음", line, hint=f"조사: {ways}")
 
     def invoke(self, function, args, line=None):
+        """동사 하나를 실행한다. 반복문의 깊이는 동사를 넘지 않는다."""
         pairs = list(args.items()) if isinstance(args, dict) else list(args)
         if len(self.stack) >= MAX_DEPTH:
             raise RecursionError_(
@@ -110,7 +109,7 @@ class CallMixin:
             self.functions = function.module.functions
             self.types = function.module.types
         self.scope = function.bind(pairs)
-        outer_loops, self.loops = self.loops, 0   # 중단문은 동사를 넘지 않는다
+        outer_loops, self.loops = self.loops, 0
         self.stack.append(Frame(function.name, line))
         try:
             self.run(function.body)

@@ -1,4 +1,4 @@
-"""실행 중에 오가는 값과 그것을 보이는 법."""
+"""실행 중에 오가는 값."""
 from ..errors import ValueError_
 
 class Break(Exception):
@@ -21,12 +21,11 @@ class Module:
     def __repr__(self):
         return f"모듈 {self.name}"
 
-# 조사 묶음은 몇 가지 되지 않으므로 한 번 셈한 것을 두고 쓴다.
 _SIGNATURES = {}
 
 
 def signature_of(particles):
-    """조사의 갯수까지 담은 시그니처.
+    """조사의 갯수까지 담은 시그니처. 몇 가지 안 되므로 셈한 것을 두고 쓴다.
 
     같은 조사를 두 번 쓰는 정의는 부를 때도 두 번 써야 하고, 값은 적은 순서대로
     묶인다. 조사가 서로 다르면 순서는 상관없다.
@@ -46,11 +45,10 @@ class Function:
         self.module = module
         particles = [particle for particle, _ in params]
         self.signature = signature_of(tuple(particles))
-        # 조사가 서로 다르면 짝짓기가 사전 하나로 끝난다.
         self.distinct = len(set(particles)) == len(particles)
 
     def bind(self, pairs):
-        """부를 때 적은 값을 매개변수에 묶는다. 같은 조사끼리는 순서대로."""
+        """부를 때 적은 값을 매개변수에 묶는다. 같은 조사끼리는 적은 순서대로."""
         if self.distinct:
             given = dict(pairs)
             return {name: given[particle] for particle, name in self.params}
@@ -108,7 +106,6 @@ def to_text(value):
     if isinstance(value, float) and value.is_integer():
         return str(int(value))
     if isinstance(value, float):
-        # 12자리까지 보인다. 조용히 두 자리로 자르면 값을 잃는다.
         return f"{value:.12g}"
     if isinstance(value, list):
         return "[" + ", ".join(to_text(v) for v in value) + "]"
@@ -155,4 +152,6 @@ def check_numbers(verb, *values):
                 f"'{verb}'의 인자가 수가 아님: {kind_of(value)} {show(value)}")
 
 
-ORDINALS = {"첫째": 0, "둘째": 1, "셋째": 2, "넷째": 3, "다섯째": 4}
+ORDINALS = {name: index for index, name in enumerate(
+    ("첫째", "둘째", "셋째", "넷째", "다섯째",
+     "여섯째", "일곱째", "여덟째", "아홉째", "열째"))}

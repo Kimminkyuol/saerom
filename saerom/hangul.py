@@ -1,4 +1,4 @@
-"""Hangul jamo decomposition and verb conjugation."""
+"""자모 나누기와 용언 활용."""
 
 BASE, LAST = 0xAC00, 0xD7A3
 
@@ -6,8 +6,6 @@ ONSETS = list("ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ")
 VOWELS = list("ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ")
 CODAS = [""] + list("ㄱㄲㄳㄴㄵㄶㄷㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅄㅅㅆㅇㅈㅊㅋㅌㅍㅎ")
 
-# Whether the Korean reading of each digit ends in a consonant.
-# Used to pick the right particle allomorph after a number.
 DIGIT_HAS_CODA = {"0": True, "1": True, "2": False, "3": True, "4": False,
                   "5": False, "6": True, "7": True, "8": True, "9": False}
 
@@ -17,7 +15,7 @@ def is_syllable(ch):
 
 
 def decompose(ch):
-    """Split one syllable into (onset, vowel, coda). None if not Hangul."""
+    """한 음절을 (초성, 중성, 종성)으로. 한글이 아니면 None."""
     if not is_syllable(ch):
         return None
     code = ord(ch) - BASE
@@ -34,7 +32,7 @@ def coda_of(ch):
 
 
 def has_coda(word):
-    """Does the word end in a consonant? Decides particle allomorphs."""
+    """낱말이 받침으로 끝나는가. 조사의 꼴을 고른다. 숫자는 읽는 소리를 따른다."""
     if not word:
         return False
     parts = decompose(word[-1])
@@ -44,28 +42,21 @@ def has_coda(word):
 
 
 def add_coda(ch, coda):
-    """Attach a coda to a codaless syllable: 하 + ㄴ -> 한."""
+    """받침 없는 음절에 받침을 붙인다: 하 + ㄴ -> 한."""
     onset, vowel, existing = decompose(ch)
     assert existing == "", f"{ch} already has a coda"
     return compose(onset, vowel, coda)
 
 
 def allomorph(word, role):
-    """Pick the particle spelling that matches the word's ending."""
+    """낱말의 끝에 맞는 조사의 꼴. '로/으로' 만은 ㄹ 받침도 '로'를 쓴다."""
     table = {"topic": ("은", "는"), "subject": ("이", "가"), "object": ("을", "를"),
              "instrument": ("으로", "로"), "conj": ("과", "와")}
     with_coda, without = table[role]
-    # 로/으로 is the odd one out: a ㄹ coda takes 로, like a bare vowel does.
     if role == "instrument" and word and coda_of(word[-1]) == "ㄹ":
         return without
     return with_coda if has_coda(word) else without
 
-
-# --- Conjugation ---------------------------------------------------------
-#
-# User-defined verbs must be "noun + 하다", so their stem always ends in 하
-# and conjugation is fully regular. Only built-in verbs need irregular forms,
-# and those live in an explicit override table in words.py.
 
 ENDINGS = ("final", "adnominal_past", "adnominal_pres", "conditional",
            "conjunctive", "alternative", "interrogative", "nominal", "auxiliary",
@@ -73,9 +64,10 @@ ENDINGS = ("final", "adnominal_past", "adnominal_pres", "conditional",
 
 
 def conjugate(stem, pos, ending):
-    """Attach an ending to a stem.
+    """어간에 어미를 붙인다. 사용자 동사는 모두 '명사 + 하다' 라서 규칙적이고,
+    불규칙한 것은 내장뿐이라 words.py 의 표가 따로 덮어쓴다.
 
-    pos: "verb" (action) or "descriptive" (adjective / copula-like)
+    pos: "verb" (동사) 또는 "descriptive" (형용사·이다)
     """
     last = stem[-1]
     open_syllable = coda_of(last) == ""
@@ -110,7 +102,7 @@ def conjugate(stem, pos, ending):
     if ending == "nominal":
         return stem + "기"
 
-    if ending == "negative":       # 크지 않다,  계산하지 않다
+    if ending == "negative":
         return stem + "지"
 
     if ending == "auxiliary":

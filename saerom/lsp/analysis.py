@@ -9,6 +9,9 @@ from ..words import BUILTIN_SIGNATURES
 from .completion import CompletionMixin
 from .tokens import TOKEN_MODIFIERS, TOKEN_TYPES, TokenMixin  # noqa: F401
 
+# LSP SymbolKind
+FUNCTION, METHOD, VARIABLE, STRUCT = 12, 6, 13, 23
+
 SEVERITY_ERROR = 1
 
 SEVERITY_WARNING = 2
@@ -60,11 +63,12 @@ class Analysis(TokenMixin, CompletionMixin):
         return os.path.dirname(self.path) if self.path else None
 
     def diagnostics(self):
+        """이 문서의 오류만 알린다. 가져온 다른 파일의 오류는 그 파일에서 알린다."""
         error = self.error
         if error is None:
             return self.unknown_verbs()
         if error.path and self.path and error.path != self.path:
-            return []                      # 가져온 다른 파일의 오류
+            return []
         line = max((error.line or 1) - 1, 0)
         start = error.col or 0
         end = error.end or start + 1
@@ -107,14 +111,14 @@ class Analysis(TokenMixin, CompletionMixin):
         out = []
         for statement in self.statements:
             if isinstance(statement, DefineStmt):
-                kind = 12 if statement.kind == "verb" else 6      # Function / Method
+                kind = FUNCTION if statement.kind == "verb" else METHOD
                 out.append(self._symbol(statement.name, kind, statement.line,
                                         detail=signature_text(statement)))
             elif isinstance(statement, RecordType):
-                out.append(self._symbol(statement.name, 23, statement.line,   # Struct
+                out.append(self._symbol(statement.name, STRUCT, statement.line,
                                         detail=", ".join(n for n, _ in statement.fields)))
             elif isinstance(statement, Declare) and isinstance(statement.target, Name):
-                out.append(self._symbol(statement.target.name, 13, statement.line))
+                out.append(self._symbol(statement.target.name, VARIABLE, statement.line))
         return out
 
     def _symbol(self, name, kind, line, detail=""):

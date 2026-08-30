@@ -23,7 +23,6 @@ with, in the order the Python parameters take them. A verb's name ends in
 """
 from .errors import Raised
 
-# python module name -> [Export]
 _PENDING = {}
 
 
@@ -57,5 +56,5 @@ def _register(kind, name, particles):
 
 
 def taken(module_name):
-    """Hand the loader everything that module registered."""
+    """그 파이썬 모듈이 내놓은 것을 적재기에 넘긴다."""
     return _PENDING.pop(module_name, [])

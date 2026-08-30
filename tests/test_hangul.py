@@ -12,8 +12,8 @@ class Jamo(unittest.TestCase):
     def test_has_coda(self):
         self.assertTrue(has_coda("목록"))
         self.assertFalse(has_coda("숫자"))
-        self.assertTrue(has_coda("1"))     # 일
-        self.assertFalse(has_coda("2"))    # 이
+        self.assertTrue(has_coda("1"))
+        self.assertFalse(has_coda("2"))
 
 
 class Allomorph(unittest.TestCase):

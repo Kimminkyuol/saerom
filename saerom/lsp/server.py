@@ -40,7 +40,6 @@ class Server:
         self.analyses = {}
         self.running = True
 
-    # --- loop ---
     def serve(self):
         while self.running:
             message = self.connection.read()
@@ -49,6 +48,7 @@ class Server:
             self.handle(message)
 
     def handle(self, message):
+        """어떤 오류가 나도 서버는 살아 있어야 한다."""
         method = message.get("method")
         params = message.get("params") or {}
         request_id = message.get("id")
@@ -65,14 +65,13 @@ class Server:
             if request_id is not None:
                 self.connection.fail(request_id, INTERNAL_ERROR, error.message)
             return
-        except Exception as error:                       # 서버가 죽으면 안 된다
+        except Exception as error:
             if request_id is not None:
                 self.connection.fail(request_id, INTERNAL_ERROR, str(error))
             return
         if request_id is not None:
             self.connection.respond(request_id, result)
 
-    # --- lifecycle ---
     def on_initialize(self, params):
         return {"capabilities": CAPABILITIES,
                 "serverInfo": {"name": "saerom", "version": version()}}
@@ -88,7 +87,6 @@ class Server:
         self.running = False
         return None
 
-    # --- documents ---
     def on_textDocument_didOpen(self, params):
         document = params["textDocument"]
         self.update(document["uri"], document["text"])
@@ -124,7 +122,6 @@ class Server:
     def analysis(self, params):
         return self.analyses.get(params["textDocument"]["uri"])
 
-    # --- features ---
     def on_textDocument_semanticTokens_full(self, params):
         analysis = self.analysis(params)
         return {"data": analysis.semantic_tokens() if analysis else []}

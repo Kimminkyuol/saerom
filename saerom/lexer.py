@@ -1,4 +1,4 @@
-"""Lexical analysis: source text -> tokens."""
+"""어휘 분석: 소스 -> 토큰."""
 import unicodedata
 
 from .words import (PARTICLES, PARTICLES_BY_LENGTH, COPULA, COPULA_BY_LENGTH,
@@ -32,11 +32,11 @@ def is_number(text):
 
 def split_word(chunk, line, col, end=None, allow_particle=True,
                allow_copula=True, known=frozenset()):
-    """Split one whitespace-delimited chunk into tokens (see docs/rules.md 2.2).
+    """어절 하나를 토큰으로 가른다.
 
-    allow_particle=False forbids stripping another case particle, keeping rule 3
-    (at most one) while still re-analysing the body for a copula.
-    allow_copula=False stops '성인인' from splitting twice into 성 + 인 + 인.
+    allow_particle=False 는 격조사를 하나만 떼게 막으면서도 몸통에서 '이다'는
+    다시 찾게 한다. allow_copula=False 는 '성인인'이 성 + 인 + 인으로 두 번
+    갈라지는 것을 막는다.
     """
     if end is None:
         end = col + len(chunk)
@@ -47,8 +47,6 @@ def split_word(chunk, line, col, end=None, allow_particle=True,
     if chunk in ADVERBS:
         return [Token("adverb", chunk, line, col, end=end)]
 
-    # docs/rules.md 2.2 (1): a chunk that is already a declared name is not cut.
-    # Without this, {나이} splits into 나 + 이.
     if chunk in known:
         return [Token("name", chunk, line, col, end=end)]
 
@@ -56,8 +54,6 @@ def split_word(chunk, line, col, end=None, allow_particle=True,
         name, pos, ending = VERB_FORMS[chunk]
         return [Token("verb", name, line, col, (pos, ending, chunk), end)]
 
-    # A user verb the lexer has never seen. Since every user verb is
-    # "noun + 하다", its shape alone identifies it -- no symbol table needed.
     for form in HADA_BY_LENGTH:
         if chunk.endswith(form) and len(chunk) > len(form):
             name = chunk[: -len(form)] + "하다"
@@ -90,14 +86,11 @@ def split_word(chunk, line, col, end=None, allow_particle=True,
         value = float(chunk) if "." in chunk else int(chunk)
         return [Token("number", value, line, col, end=end)]
 
-    # Strip exactly one particle from the end.
     if allow_particle:
         for form in PARTICLES_BY_LENGTH:
             if chunk.endswith(form) and len(chunk) > len(form):
                 body = chunk[: -len(form)]
                 role, canonical = PARTICLES[form]
-                # The particle gets its own span so the formatter can rewrite
-                # just those characters, and carets underline just the name.
                 cut = end - len(form)
                 head = split_word(body, line, col, cut, allow_particle=False,
                                   allow_copula=allow_copula, known=known)
@@ -144,8 +137,6 @@ def tokenize(source, known=None):
             if ch == "#":
                 break
             if ch == '"':
-                # Every string interpolates: "{이름}님" embeds an expression.
-                # A literal brace is written \{ .
                 j, chars, parts = i + 1, [], []
                 while j < n and text[j] != '"':
                     if text[j] == "\\" and j + 1 < n:
@@ -166,8 +157,6 @@ def tokenize(source, known=None):
                         inner = raw.strip()
                         if not inner:
                             raise LexError("'{}' 안이 비었음", lineno, j, k + 1)
-                        # 조각의 자리를 함께 담아 둔다. 포매터가 그 안의 조사도
-                        # 고쳐야 하기 때문이다.
                         offset = j + 1 + (len(raw) - len(raw.lstrip()))
                         parts.append(("text", "".join(chars), None, None))
                         parts.append(("expr", inner, offset, offset + len(inner)))
@@ -212,7 +201,6 @@ def tokenize(source, known=None):
             raise LexError(f"쓸 수 없는 글자: {ch!r}", lineno, i, i + 1)
 
         tokens += produced
-        # A statement ends at '.' or ':', or is a lone value (표현문).
         closed = bool(produced) and produced[-1].kind == "symbol" and produced[-1].value in ".:"
         lone = len(produced) == 1 and produced[0].kind in ("number", "string",
                                                             "template", "keyword", "name")
@@ -220,7 +208,7 @@ def tokenize(source, known=None):
             tokens.append(Token("newline", None, lineno, len(text)))
             at_statement_start = True
         else:
-            at_statement_start = False   # the next physical line continues this one
+            at_statement_start = False
 
     while len(indents) > 1:
         indents.pop()
@@ -230,11 +218,9 @@ def tokenize(source, known=None):
 
 
 def prescan(source):
-    """Collect the names a source declares, so the second pass can honour
-    docs/rules.md 2.2 (1) and leave them whole.
+    """소스가 선언한 이름을 모은다. 두 번째 훑기가 이 이름들은 가르지 않는다.
 
-    A name is anything that carries a particle somewhere, plus the 원소 of any
-    collection walked by '~들마다'.
+    어딘가에서 조사를 달고 나온 것, 그리고 '~들마다'가 도는 목록의 원소가 이름이다.
     """
     names = set()
     tokens = tokenize(source, known=frozenset())

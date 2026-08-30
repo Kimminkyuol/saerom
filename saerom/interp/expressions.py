@@ -1,8 +1,9 @@
-"""값을 내는 일."""
+"""식 하나를 값으로."""
 from ..errors import NameError_, SaeromError, ValueError_, suggest
 from ..nodes import (AND, OR, Call, Filter, FoldExpr, ListExpr, Literal, MapExpr,
                      Name, PassiveCall, Property, QuantExpr, RecordLit, SelectExpr,
                      SortSpec, Template)
+from .builtins import CHANGES
 from .calls import CallMixin
 import copy
 
@@ -17,6 +18,7 @@ class ExpressionMixin(CallMixin):
                   list: "목록"}
 
     def evaluate(self, node):
+        """EVALUATE 에 적힌 갈래대로 식 하나를 값으로 바꾼다."""
         found = self.EVALUATE.get(type(node))
         if found is None:
             raise SaeromError(f"값이 될 수 없음: {type(node).__name__}",
@@ -27,12 +29,11 @@ class ExpressionMixin(CallMixin):
         return node.value
 
     def evaluate_name(self, node):
+        """이름 하나를 값으로. 관형절 안에서 임자를 생략하면 원소의 필드로 읽는다."""
         if node.name in self.scope:
             return self.scope[node.name]
         if node.name in self.globals:
             return self.globals[node.name]
-        # 관형절 안에서 임자를 생략하면 원소의 필드로 읽는다:
-        # '나이가 17인 학생들', '글자수가 0이 아닌 글줄들'
         if self.items:
             try:
                 return self.get_property(self.items[-1], node.name)
@@ -63,7 +64,8 @@ class ExpressionMixin(CallMixin):
         source = self.evaluate(node.source)
         verb = node.clause.verb
         extra = {p: self.evaluate(e) for p, e in node.clause.slots}
-        return [self.apply(verb, self.fill_item(verb, dict(extra), item), node.line)
+        return [self.apply(verb, spare(verb, self.fill_item(verb, dict(extra), item)),
+                           node.line)
                 for item in source]
 
     def evaluate_quantifier(self, node):
@@ -119,7 +121,7 @@ class ExpressionMixin(CallMixin):
                 return self.at(value, -1, field)
         raise NameError_(
             f"{kind_of(value)}에 필드 '{field}' 없음",
-            hint="목록: 개수, 길이, 첫째, 마지막, <수>번째 / 문자열: 글자수")
+            hint="목록: 개수, 길이, 첫째 ~ 열째, 마지막, <수>번째 / 문자열: 글자수")
 
     @staticmethod
     def at(value, index, field):
@@ -173,7 +175,7 @@ class ExpressionMixin(CallMixin):
         if key not in self.empty_slots:
             self.empty_slots[key] = self.empty_slot(verb, given)
         found = self.empty_slots[key]
-        if found is None:              # 자리를 고를 수 없으면 그대로 둔다
+        if found is None:
             return args
         alone, particle = found
         if alone:
@@ -195,25 +197,25 @@ class ExpressionMixin(CallMixin):
         return None
 
     def evaluate_clause(self, clause, item):
-        """Evaluate a 관형절 for one item and return its value."""
+        """관형절을 원소 하나에 대해 값으로. 뒤집기는 test_clause 가 한 번만 한다."""
         if not isinstance(clause, Call):
             return self.evaluate(clause)
 
-        # '우등생인 학생들' / '음수가 아닌 수들' — 이다 앞의 이름이 값이 아니라
-        # 술어를 가리킬 수 있다. 한국어의 이중주격이라 조사가 없기도, '가'이기도 하다.
         if clause.verb == "이다":
             found = self.predicate_slot(clause.slots)
             if found is not None:
                 name, rest = found
-                # 뒤집기는 test_clause가 한 번만 한다.
                 args = {p: self.evaluate(e) for p, e in rest}
-                return self.apply(name, self.fill_item(name, args, item), clause.line)
+                return self.apply(name, spare(name, self.fill_item(name, args, item)),
+                                  clause.line)
 
+        verb = clause.verb
         args = {p: self.evaluate(e) for p, e in clause.slots}
-        return self.apply(clause.verb, self.fill_item(clause.verb, args, item), clause.line)
+        return self.apply(verb, spare(verb, self.fill_item(verb, args, item)), clause.line)
 
     def predicate_slot(self, slots):
-        """이다의 슬롯 가운데 술어 이름을 가리키는 것을 찾는다."""
+        """이다의 슬롯 가운데 술어 이름을 가리키는 것. 이중주격이라 조사가
+        없기도, '가'이기도 하다: '우등생인 학생들', '음수가 아닌 수들'."""
         for index, (particle, expr) in enumerate(slots):
             if particle in (None, "가") and isinstance(expr, Name):
                 name = expr.name + "이다"
@@ -253,12 +255,12 @@ class ExpressionMixin(CallMixin):
         if whole is not None:
             return self.apply(verb, {**extra, "를": source}, node.line)
         if not source:
-            return 0
+            raise SaeromError("모을 원소가 없음", node.line)
         signature = self.two_slot_signature(verb)
         if signature is None:
             raise SaeromError(f"'{verb}'로 모을 수 없음", node.line)
         accumulator_slot = (signature - {"를"}).pop()
-        total = source[0]
+        total = copy.deepcopy(source[0])
         for item in source[1:]:
             total = self.apply(verb, {accumulator_slot: total, "를": item}, node.line)
         return total
@@ -281,9 +283,10 @@ class ExpressionMixin(CallMixin):
         return best
 
     def passive(self, node):
+        """피동은 복사본을 고쳐 돌려준다. 능동의 '~을'이 피동에서 '~이'가 된다."""
         target = copy.deepcopy(self.evaluate(node.head))
         extra = {p: self.evaluate(e) for p, e in node.slots}
-        if "가" in extra:                      # 능동의 '~을'이 피동에서 '~이'가 된다
+        if "가" in extra:
             extra["를"] = extra.pop("가")
         for particle in self.head_particles(node.verb, set(extra)):
             handler = self.lookup(node.verb, list(extra) + [particle])
@@ -299,6 +302,7 @@ class ExpressionMixin(CallMixin):
             raise error.locate(node)
 
     def dispatch(self, node):
+        """'이다'는 견줌일 수도, 술어를 부르는 것일 수도 있다. 그것은 실행 때 갈린다."""
         if node.verb in (AND, OR):
             left = truthy(self.evaluate(node.slots[0][1]))
             if node.verb == AND and not left:
@@ -307,7 +311,6 @@ class ExpressionMixin(CallMixin):
                 return True
             return truthy(self.evaluate(node.slots[1][1]))
 
-        # '수학의 소수인지' — 모듈 안의 술어.
         if node.verb == "이다":
             holder = [expr for particle, expr in node.slots if particle == "모듈"]
             if holder:
@@ -324,7 +327,6 @@ class ExpressionMixin(CallMixin):
                     value = self.invoke(function, args, node.line)
                     return not truthy(value) if node.negated else value
 
-        # 'X가 <이름>이면' is either a comparison or a 술어 call.
         if node.verb == "이다":
             found = self.predicate_slot(node.slots)
             if found is not None:
@@ -333,18 +335,20 @@ class ExpressionMixin(CallMixin):
                 if self.lookup(name, args) is not None:
                     value = self.apply(name, args, node.line)
                     return not truthy(value) if node.negated else value
+                bare = name[:-2]
+                if bare not in self.scope and bare not in self.globals:
+                    raise self.unknown_call(name, args, node.line)
 
-        # 같은 조사가 여럿일 수 있으므로 적은 차례를 지킨 짝으로 넘긴다.
         pairs = [(particle, self.evaluate(expr)) for particle, expr in node.slots]
-        name = node.verb + ("·나머지" if getattr(node, "tail", None) == "나머지" else "")
+        if node.tail:
+            pairs = spare_pairs(node.verb, pairs)
+        name = node.verb + ("·나머지" if node.tail == "나머지" else "")
         result = self.apply(name, pairs, node.line)
         return not truthy(result) if node.negated else result
 
     def evaluate_record(self, node):
-        # 구조체 만들기는 자료형을 아는 실행기가 맡는다.
         return self.build_record(node)
 
-    # 마디의 갈래마다 하나씩. 이 표를 거치므로 갈래를 더할 때 함께 적는다.
     EVALUATE = {
         Literal: evaluate_literal,
         Name: evaluate_name,
@@ -361,3 +365,20 @@ class ExpressionMixin(CallMixin):
         SelectExpr: select,
         QuantExpr: evaluate_quantifier,
     }
+
+
+def spare(verb, args):
+    """값을 내는 자리에서 부르면 바꿀 자리를 복사해서 넘긴다."""
+    slot = CHANGES.get(verb)
+    if slot is not None and isinstance(args.get(slot), list):
+        args[slot] = list(args[slot])
+    return args
+
+
+def spare_pairs(verb, pairs):
+    slot = CHANGES.get(verb)
+    if slot is None:
+        return pairs
+    return [(particle, list(value)
+             if particle == slot and isinstance(value, list) else value)
+            for particle, value in pairs]

@@ -17,32 +17,31 @@ from .values import (Break, Continue, Function, Handle, Module, NativeFunction,
 class Interpreter(ExpressionMixin):
     """구문트리를 실행한다."""
 
+    TYPE_VALUES = ("정수", "실수", "문자열", "논리값",
+                   "정수들", "실수들", "문자열들", "논리값들")
+
     def __init__(self, out=sys.stdout):
-        # Each 새롬 call costs several Python frames; make sure our own limit
-        # is the one that fires, so the error can carry a 호출 스택.
         sys.setrecursionlimit(max(sys.getrecursionlimit(), MAX_DEPTH * 40))
         self.out = out
-        # 타입 이름은 그 자체가 값이다: '~를 정수로 바꾼 값'
-        self.globals = {name: name for name in
-                        ("정수", "실수", "문자열", "논리값",
-                         "정수들", "실수들", "문자열들", "논리값들")}
+        self.globals = {name: name for name in self.TYPE_VALUES}
         self.scope = self.globals
         self.functions = {}
         self.types = {}
-        self.items = []          # 관형절이 다루고 있는 원소들
-        self.stack = []          # 호출 스택 (호출 스택)
-        self.modules = {}        # 읽어 둔 모듈 (경로 -> Module)
+        self.items = []
+        self.stack = []
+        self.modules = {}
         self.builtins = builtin_table.build(self)
-        self.empty_slots = {}    # (동사, 채워진 조사) -> 원소가 들어갈 자리
-        self.verb_names = set()  # 정의된 용언의 이름
+        self.empty_slots = {}
+        self.verb_names = set()
         self.verb_names_key = None
-        self.loops = 0           # 지금 들어와 있는 반복문의 깊이
+        self.loops = 0
 
     def run(self, statements):
         for statement in statements:
             self.execute(statement)
 
     def execute(self, node):
+        """EXECUTE 에 적힌 갈래대로 문장 하나를 실행한다."""
         found = self.EXECUTE.get(type(node))
         if found is None:
             raise SaeromError(f"실행할 수 없는 문장: {type(node).__name__}",
@@ -90,7 +89,6 @@ class Interpreter(ExpressionMixin):
         if node.otherwise is not None:
             self.run(node.otherwise)
 
-    # 문장의 갈래마다 하나씩. 이 표를 거치므로 갈래를 더할 때 함께 적는다.
     EXECUTE = {
         Declare: run_declare,
         ExecStmt: run_exec,
@@ -117,7 +115,7 @@ class Interpreter(ExpressionMixin):
         inner = Interpreter(self.out)
         inner.modules = self.modules
         module = Module(name, inner.globals, inner.functions, inner.types)
-        self.modules[path] = module          # 서로 가져와도 맴돌지 않도록 먼저 넣는다
+        self.modules[path] = module
         inner.run(statements)
         for function in inner.functions.values():
             function.module = module
@@ -199,44 +197,52 @@ class Interpreter(ExpressionMixin):
 
     def run_loop(self, node):
         self.loops += 1
+        outer = self.scope.get("번째")
         try:
-            self.walk_loop(node)
+            if node.kind == "while":
+                self.repeat_while(node)
+            else:
+                self.repeat_over(node, self.loop_values(node))
         finally:
             self.loops -= 1
+            if outer is None:
+                self.scope.pop("번째", None)
+            else:
+                self.scope["번째"] = outer
 
-    def walk_loop(self, node):
-        if node.kind == "while":
-            index = 1
-            while truthy(self.evaluate(node.test)):
-                if not self.run_body(node.body, index):
-                    break
-                index += 1
-            return
+    def repeat_while(self, node):
+        index = 1
+        while True:
+            self.scope["번째"] = index
+            if not truthy(self.evaluate(node.test)):
+                return
+            if not self.run_body(node.body, index):
+                return
+            index += 1
 
-        if node.kind == "range":
-            start, stop = self.evaluate(node.start), self.evaluate(node.stop)
-            step = self.evaluate(node.step) if node.step is not None else 1
-            check_numbers("반복하다", start, stop, step)
-            step = abs(step) or 1
-            down = start > stop
-            values, current = [], start
-            while (current >= stop) if down else (current <= stop):
-                values.append(current)
-                current += -step if down else step
-        else:
-            values = self.evaluate(node.source)
-            if not isinstance(values, list):
-                raise SaeromError("'마다' 앞이 목록이 아님")
-
-        outer = self.scope.get("번째")
+    def repeat_over(self, node, values):
         for index, value in enumerate(values, 1):
             self.scope[node.variable] = value
             if not self.run_body(node.body, index):
-                break
-        if outer is None:
-            self.scope.pop("번째", None)
-        else:
-            self.scope["번째"] = outer
+                return
+
+    def loop_values(self, node):
+        if node.kind != "range":
+            values = self.evaluate(node.source)
+            if not isinstance(values, list):
+                raise SaeromError("'마다' 앞이 목록이 아님", node.line)
+            return values
+
+        start, stop = self.evaluate(node.start), self.evaluate(node.stop)
+        step = self.evaluate(node.step) if node.step is not None else 1
+        check_numbers("반복하다", start, stop, step)
+        step = abs(step) or 1
+        down = start > stop
+        values, current = [], start
+        while (current >= stop) if down else (current <= stop):
+            values.append(current)
+            current += -step if down else step
+        return values
 
     def run_body(self, body, index):
         self.scope["번째"] = index

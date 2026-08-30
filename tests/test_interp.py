@@ -187,6 +187,22 @@ class Lists(unittest.TestCase):
         self.check("수들의 마지막", "4")
         self.check("수들의 2번째", "8")
 
+    def test_ordinals_up_to_ten(self):
+        source = "수들은 [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]이다.\n"
+        for field, wanted in [("첫째", "1"), ("다섯째", "5"), ("여섯째", "6"),
+                              ("아홉째", "9"), ("열째", "10")]:
+            with self.subTest(field=field):
+                self.assertEqual(run(source + f"수들의 {field}를 출력한다."), wanted)
+
+    def test_empty_reduce_is_an_error(self):
+        error = failure("빈목록을 모두 더한 값을 출력한다.")
+        self.assertIn("모을 원소가 없음", error.message)
+
+    def test_reduce_leaves_the_source_alone(self):
+        self.assertEqual(
+            run("겹친것은 [[1], [2]]이다.\n겹친것을 모두 더한 값을 출력한다.\n"
+                "겹친것을 출력한다."), "[1, 2][[1], [2]]")
+
     def test_field_out_of_range(self):
         for expression in ("빈목록의 첫째", "빈목록의 마지막", "수들의 5번째",
                            '""의 첫째', '""의 마지막'):
@@ -236,6 +252,38 @@ class LoopControl(unittest.TestCase):
                 "1부터 2까지의 수들마다 반복한다:\n    수를 재주한다."), "안안")
 
 
+class Counter(unittest.TestCase):
+    """'번째' 는 두 반복문에서 똑같이 쓰이고, 반복문 밖으로 새지 않는다."""
+
+    def test_available_in_a_while_condition(self):
+        self.assertEqual(
+            run("번째가 3보다 작은 동안 반복한다:\n"
+                '    "{번째}"를 출력한다.'), "12")
+
+    def test_available_in_a_while_body(self):
+        self.assertEqual(
+            run("남은것은 2이다.\n남은것이 0보다 큰 동안 반복한다:\n"
+                '    "{번째}"를 출력한다.\n'
+                "    남은것은 남은것에서 1을 뺀 값이다."), "12")
+
+    def test_does_not_leak_out_of_a_while_loop(self):
+        error = failure("남은것은 1이다.\n남은것이 0보다 큰 동안 반복한다:\n"
+                        "    남은것은 0이다.\n번째를 출력한다.")
+        self.assertEqual(error.kind, "이름 오류")
+
+    def test_does_not_leak_out_of_an_each_loop(self):
+        error = failure("수들은 [1]이다.\n수들마다 반복한다:\n    참\n"
+                        "번째를 출력한다.")
+        self.assertEqual(error.kind, "이름 오류")
+
+    def test_outer_counter_comes_back(self):
+        self.assertEqual(
+            run("바깥들은 [1, 2]이다.\n안들은 [1]이다.\n"
+                "바깥들마다 반복한다:\n"
+                "    안들마다 반복한다:\n        참\n"
+                '    "{번째}"를 출력한다.'), "12")
+
+
 class Predicates(unittest.TestCase):
     """술어는 참이나 거짓만 낸다."""
 
@@ -267,6 +315,34 @@ class Predicates(unittest.TestCase):
 
     def test_conjunction_still_makes_a_list(self):
         self.assertEqual(run("수들은 1과 2와 3이다.\n수들을 출력한다."), "[1, 2, 3]")
+
+
+class ChangesAndValues(unittest.TestCase):
+    """능동은 그 자리에서 고치고, 값을 내는 자리에서는 원본을 두고 복사한다."""
+
+    def test_append_as_a_statement_changes_the_list(self):
+        self.assertEqual(
+            run("수들은 [1]이다.\n수들에 2를 더한다.\n수들을 출력한다."), "[1, 2]")
+
+    def test_append_as_a_value_spares_the_list(self):
+        self.assertEqual(
+            run("원본은 [1, 2]이다.\n새것은 원본에 3을 더한 값이다.\n"
+                '"{새것} {원본}"을 출력한다.'), "[1, 2, 3] [1, 2]")
+
+    def test_sort_as_a_statement_changes_the_list(self):
+        self.assertEqual(
+            run("수들은 [3, 1]이다.\n수들을 정렬한다.\n수들을 출력한다."), "[1, 3]")
+
+    def test_sort_as_a_value_spares_the_list(self):
+        self.assertEqual(
+            run("원본은 [3, 1]이다.\n"
+                '"{원본을 정렬한 값} {원본}"을 출력한다.'), "[1, 3] [3, 1]")
+
+    def test_map_spares_the_items(self):
+        self.assertEqual(
+            run("겹친것은 [[3, 1]]이다.\n"
+                '"{겹친것을 각각 정렬한 값들} {겹친것}"을 출력한다.'),
+            "[[1, 3]] [[3, 1]]")
 
 
 class RecordFields(unittest.TestCase):
@@ -499,6 +575,13 @@ class Errors(unittest.TestCase):
                         "1을 바깥쪽한 값을 출력한다.")
         self.assertEqual([frame.verb for frame in error.frames],
                          ["바깥쪽하다", "안쪽하다"])
+
+    def test_predicate_is_not_conjugated_like_a_verb(self):
+        error = failure("수학에서 짝수이다를 가져온다.\n"
+                        "3이 4로 짝수인지를 출력한다.")
+        shown = f"{error.message} {error.hint or ''}"
+        self.assertIn("짝수이다", shown)
+        self.assertNotIn("짝수인다", shown)
 
     def test_position_is_recorded(self):
         error = failure("1을 출력한다.\n없는이름을 출력한다.")

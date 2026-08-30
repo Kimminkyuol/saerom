@@ -10,13 +10,13 @@ from saerom.formatter import format_source
 
 EXAMPLES = sorted((pathlib.Path(__file__).resolve().parents[1] / "examples").glob("*.sr"))
 
-# 넣는 값에 따라 출력이 달라지는 예시
 NEEDS_INPUT = {"14-입력.sr"}
 
 
 def run_example(path):
+    """예시 하나를 빈 입력으로 돌리고 출력을 돌려준다."""
     stdin, out = sys.stdin, io.StringIO()
-    sys.stdin = io.StringIO("")            # 입력 예시가 멈추지 않도록
+    sys.stdin = io.StringIO("")
     try:
         run_source(path.read_text(encoding="utf-8"), out=out, path=str(path))
     finally:
@@ -45,7 +45,8 @@ class Examples(unittest.TestCase):
                 self.assertTrue(run_example(path))
 
     def test_each_one_prints_what_it_says(self):
-        """예시에 달아 둔 '# →' 주석이 실제 출력에 차례대로 나와야 한다."""
+        """예시에 달아 둔 '# →' 주석이 실제 출력에 차례대로 나와야 한다.
+        NEEDS_INPUT 은 넣는 값에 따라 출력이 달라지므로 건너뛴다."""
         for path in EXAMPLES:
             if path.name in NEEDS_INPUT:
                 continue

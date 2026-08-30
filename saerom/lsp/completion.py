@@ -18,6 +18,9 @@ OFFERED = ["는", "가", "를", "의", "에", "에서", "에게", "로", "보다
 ROLE_OF = {"는": "topic", "가": "subject", "를": "object",
            "로": "instrument", "와": "conj"}
 
+# LSP CompletionItemKind
+VARIABLE, FUNCTION, MODULE, KEYWORD, STRUCT, SNIPPET, OPERATOR = 6, 3, 9, 14, 22, 15, 24
+
 
 class CompletionMixin:
     """무엇을 이어 칠 수 있는지, 무엇을 가리키고 있는지."""
@@ -31,15 +34,14 @@ class CompletionMixin:
 
         groups = []
         if has_hangul(word):
-            # 앞 낱말의 받침에 맞춘 조사부터 보여 준다.
             groups.append((0, particle_items(word)))
-        groups.append((1, [item(name, 6, "이름") for name in sorted(self.names)]))
-        groups.append((2, [item(name, 3, signature_hint(name, self.verbs))
+        groups.append((1, [item(name, VARIABLE, "이름") for name in sorted(self.names)]))
+        groups.append((2, [item(name, FUNCTION, signature_hint(name, self.verbs))
                            for name in sorted(self.verbs)]))
-        groups.append((3, [item(name, 22, "구조체") for name in sorted(self.types)]))
-        groups.append((3, [item(name, 9, "모듈") for name in sorted(self.modules)]))
-        groups.append((4, [item(name, 14, "예약어") for name in sorted(KEYWORDS)]))
-        groups.append((4, [item(name, 14, "부사") for name in sorted(ADVERBS)]))
+        groups.append((3, [item(name, STRUCT, "구조체") for name in sorted(self.types)]))
+        groups.append((3, [item(name, MODULE, "모듈") for name in sorted(self.modules)]))
+        groups.append((4, [item(name, KEYWORD, "예약어") for name in sorted(KEYWORDS)]))
+        groups.append((4, [item(name, KEYWORD, "부사") for name in sorted(ADVERBS)]))
         groups.append((5, [dict(snippet) for snippet in SNIPPETS]))
 
         out = []
@@ -88,7 +90,7 @@ def has_hangul(word):
     return any("가" <= ch <= "힣" for ch in word)
 
 def particle_items(word):
-    """Offer particles already spelled to match the word in front of them."""
+    """앞 낱말의 받침에 맞춘 꼴로 조사를 내놓는다."""
     out = []
     for particle in OFFERED:
         role = ROLE_OF.get(particle)
@@ -96,16 +98,20 @@ def particle_items(word):
         detail = PARTICLE_HELP.get(particle, "")
         out.append({
             "label": word + spelled,
-            "kind": 24,                                   # Operator
+            "kind": OPERATOR,
             "detail": f"조사 — {detail}" if detail else "조사",
             "insertText": word + spelled,
             "filterText": word + spelled,
         })
     return out
 
+def kind_name(name):
+    return "술어" if name.endswith("이다") else "동사"
+
+
 def signature_hint(name, verbs):
     ways = verbs.get(name) or []
-    return " / ".join(describe_signature(name, way) for way in ways) or "동사"
+    return " / ".join(describe_signature(name, way) for way in ways) or kind_name(name)
 
 def signature_text(statement):
     return " ".join(f"~{particle}" for particle, _ in statement.params)
@@ -113,8 +119,8 @@ def signature_text(statement):
 def verb_help(name, verbs):
     ways = verbs.get(name)
     if not ways:
-        return f"동사 `{name}`"
-    lines = [f"동사 `{name}`", ""]
+        return f"{kind_name(name)} `{name}`"
+    lines = [f"{kind_name(name)} `{name}`", ""]
     lines += [f"- `{describe_signature(name, way)}`" for way in ways]
     return "\n".join(lines)
 
@@ -123,14 +129,14 @@ def item(label, kind, detail):
 
 
 SNIPPETS = [
-    {"label": "만약", "kind": 15, "detail": "조건문",
+    {"label": "만약", "kind": SNIPPET, "detail": "조건문",
      "insertText": "만약 ${1:조건}이면:\n    ${0}", "insertTextFormat": 2},
-    {"label": "반복한다", "kind": 15, "detail": "반복문",
+    {"label": "반복한다", "kind": SNIPPET, "detail": "반복문",
      "insertText": "${1:1}부터 ${2:10}까지의 ${3:수}들마다 반복한다:\n    ${0}",
      "insertTextFormat": 2},
-    {"label": "것은", "kind": 15, "detail": "정의문",
+    {"label": "것은", "kind": SNIPPET, "detail": "정의문",
      "insertText": "${1:값}을 ${2:이름}하는 것은:\n    ${0}", "insertTextFormat": 2},
-    {"label": "이런 것이다", "kind": 15, "detail": "구조체 선언",
+    {"label": "이런 것이다", "kind": SNIPPET, "detail": "구조체 선언",
      "insertText": "${1:이름}은 이런 것이다:\n    ${2:필드}는 ${3:정수}이다.\n${0}",
      "insertTextFormat": 2},
 ]

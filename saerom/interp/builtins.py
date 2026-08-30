@@ -1,10 +1,14 @@
-"""내장. 새롬으로 쓸 수 없는 것만 둔다."""
+"""내장. 새롬으로 적을 수 없는 것만 둔다."""
 import os
 import sys
 
 from ..errors import ArithmeticError_, Raised, ValueError_
 from .values import (Handle, SortKey, check_numbers, show, signature_of,
                      to_text, truthy)
+
+
+# 능동으로 부르면 고쳐지는 조사 자리. 값 자리에서 부르면 복사해서 넘긴다.
+CHANGES = {"더하다": "에", "정렬하다": "를"}
 
 
 def build(interp):
@@ -58,7 +62,7 @@ def build(interp):
 
     def contains(a):
         whole = a["가"]
-        if isinstance(whole, list):      # 목록이면 원소를 견준다
+        if isinstance(whole, list):
             return a["를"] in whole
         return to_text(a["를"]) in to_text(whole)
 
@@ -73,7 +77,7 @@ def build(interp):
                         reverse=spec.descending)
         else:
             target.sort(key=sort_key)
-        return None
+        return target
 
     def sort_key(value):
         return (0, value, "") if isinstance(value, (int, float)) else (1, 0, to_text(value))
@@ -95,7 +99,7 @@ def build(interp):
         return a["에"] + a["를"]
 
     def read_line(a):
-        interp.out.flush()          # 물음을 먼저 보이고 기다린다
+        interp.out.flush()
         line = sys.stdin.readline()
         if not line:
             raise Raised("입력끝")
@@ -103,7 +107,7 @@ def build(interp):
 
     def read_file(a):
         target = a["를"]
-        if isinstance(target, Handle):     # 열어 둔 파일도 읽는다
+        if isinstance(target, Handle):
             target.stream.flush()
             target.stream.seek(0)
             return target.stream.read()
@@ -116,7 +120,7 @@ def build(interp):
             raise Raised("권한없음")
 
     def open_file(a):
-        # 모드가 없다. 있으면 그대로 열고, 없으면 만든다. 첫 쓰기에서 비운다.
+        """읽기와 쓰기를 함께 연다. 없으면 만들고, 첫 쓰기에서 비운다."""
         path = to_text(a["를"])
         mode = "r+" if os.path.exists(path) else "w+"
         try:
@@ -128,7 +132,7 @@ def build(interp):
         target = a["에"]
         if not isinstance(target, Handle):
             raise ValueError_("'쓰다'의 '~에' 자리가 파일이 아님")
-        if not target.written:            # 처음 쓸 때 이전 내용을 버린다
+        if not target.written:
             target.stream.seek(0)
             target.stream.truncate()
             target.written = True

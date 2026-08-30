@@ -178,6 +178,43 @@ class PythonModule(unittest.TestCase):
         self.assertIn("조사가 아닌", self.fails("틀림을 가져온다.").message)
 
 
+class ChangedOnDisk(unittest.TestCase):
+    """모듈 파일이 바뀌면 다시 읽는다."""
+
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+
+    def tearDown(self):
+        self.folder.cleanup()
+
+    def write(self, name, text):
+        path = os.path.join(self.folder.name, name)
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(text)
+        return path
+
+    def go(self, source):
+        return run(source, path=self.write("주.sr", source))
+
+    def test_saerom_module_is_reread(self):
+        source = "도구에서 두배하다를 가져온다.\n1을 두배한 값을 출력한다."
+        self.write("도구.sr", '수를 두배하는 것은:\n    2를 돌려준다.\n')
+        self.assertEqual(self.go(source), "2")
+        self.write("도구.sr", '수를 두배하는 것은:\n    22를 돌려준다.\n')
+        self.assertEqual(self.go(source), "22")
+
+    def test_python_module_is_reread(self):
+        source = "파이에서 세배하다를 가져온다.\n1을 세배한 값을 출력한다."
+        self.write("파이.py", "from saerom.extension import verb\n\n"
+                              '@verb("세배하다", "를")\n'
+                              "def triple(number):\n    return 3\n")
+        self.assertEqual(self.go(source), "3")
+        self.write("파이.py", "from saerom.extension import verb\n\n"
+                              '@verb("세배하다", "를")\n'
+                              "def triple(number):\n    return 33\n")
+        self.assertEqual(self.go(source), "33")
+
+
 class PredicateResult(unittest.TestCase):
     """술어는 참이나 거짓만 낸다."""
 

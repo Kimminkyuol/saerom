@@ -23,12 +23,12 @@ class ParserBase:
     def __init__(self, tokens):
         self.tokens = tokens
         self.pos = 0
-        self.types = set()      # 선언된 틀 이름들
+        self.types = set()
         self.signatures = {name: [ordered(sig) for sig in sigs]
                            for name, sigs in BUILTIN_SIGNATURES.items()}
         self.known = frozenset()
         self.base_dir = None
-        self.module_names = set()   # 가져온 모듈 이름들
+        self.module_names = set()
 
     @staticmethod
     def where(token):

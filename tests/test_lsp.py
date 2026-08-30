@@ -101,7 +101,7 @@ class Session(unittest.TestCase):
         self.assertEqual(replies[-1]["result"], [])
 
     def test_hover_on_a_verb_lists_signatures(self):
-        params = dict(DOC, position={"line": 4, "character": 12})   # 돌려준다
+        params = dict(DOC, position={"line": 4, "character": 12})
         replies = talk(open_document() + [request("textDocument/hover", params)])
         self.assertIn("돌려주다", replies[-1]["result"]["contents"]["value"])
 
@@ -144,7 +144,7 @@ class SemanticTokens(unittest.TestCase):
 
     def test_inside_interpolation_is_code(self):
         spans = self.spans('"{수를 출력한 값}"을 출력한다.')
-        self.assertIn((0, 1, 1, "embedded"), spans)      # 여는 중괄호
+        self.assertIn((0, 1, 1, "embedded"), spans)
         self.assertIn((0, 2, 1, "variable"), spans)
         self.assertIn((0, 3, 1, "particle"), spans)
 

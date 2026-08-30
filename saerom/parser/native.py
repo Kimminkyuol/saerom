@@ -1,4 +1,4 @@
-"""Reading a module that is written in Python."""
+"""파이썬으로 적은 모듈 읽기."""
 import importlib.util
 import os
 import sys
@@ -6,17 +6,16 @@ import sys
 from .. import extension
 from ..errors import SaeromError
 from ..words import PARTICLES
-from .modules import ordered
+from .modules import ordered, stamp_of
 
-# 조사 자리에 쓸 수 있는 조사들 (대표형)
 PARTICLE_NAMES = {canonical for _, canonical in PARTICLES.values()}
 
-# path -> NativeModule.  파서와 실행기가 같은 것을 본다.
 LOADED = {}
 
 
 class NativeModule:
-    """A 파이썬으로 적은 모듈. 파서에게는 .sr 모듈과 같은 얼굴을 보인다."""
+    """파이썬으로 적은 모듈. 파서에게는 .sr 모듈과 같은 얼굴을 보인다.
+    구조체는 내놓을 수 없다."""
 
     def __init__(self, name, exports, values):
         self.name, self.exports, self.values = name, exports, values
@@ -24,17 +23,18 @@ class NativeModule:
         for export in exports:
             self.signatures.setdefault(export.name, []).append(
                 ordered(export.particles))
-        self.types = set()          # 파이썬 모듈은 구조체를 내지 않는다
+        self.types = set()
 
 
 def load(path):
-    """모듈 하나를 읽어 NativeModule을 돌려준다. 한 번만 읽는다."""
     path = os.path.abspath(path)
-    if path in LOADED:
-        return LOADED[path]
+    stamp = stamp_of(path)
+    cached = LOADED.get(path)
+    if cached is not None and cached[0] == stamp:
+        return cached[1]
 
     name = os.path.splitext(os.path.basename(path))[0]
-    inner = f"새롬모듈.{name}.{len(LOADED)}"
+    inner = f"새롬모듈.{name}"
     spec = importlib.util.spec_from_file_location(inner, path)
     module = importlib.util.module_from_spec(spec)
     sys.modules[inner] = module
@@ -56,8 +56,8 @@ def load(path):
     for export in exports:
         check(name, export)
 
-    LOADED[path] = NativeModule(name, exports, dict(values))
-    return LOADED[path]
+    LOADED[path] = (stamp, NativeModule(name, exports, dict(values)))
+    return LOADED[path][1]
 
 
 def check(module, export):
