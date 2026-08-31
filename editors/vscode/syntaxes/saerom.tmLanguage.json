@@ -90,7 +90,7 @@
         },
         {
           "name": "variable.other.saerom",
-          "match": "(?<![가-힣])(번째|이유|결과|오류)(?![가-힣])"
+          "match": "(?<![가-힣])(오류)(?![가-힣])"
         },
         {
           "name": "storage.modifier.saerom",
@@ -114,50 +114,19 @@
       "match": "(?<=[가-힣0-9\\]\"])(이라는|라는|이거나|이고|이면|인지|이다|인|은|는|이|가|을|를|에서|에게|에|으로|로|의|보다|마다|만큼|중|와|과|부터|까지)(?![가-힣])"
     },
     "definition": {
-      "patterns": [
-        {
-          "comment": "파생 필드 정의",
-          "match": "^\\s*([가-힣0-9_]+)(의)\\s+([가-힣0-9_]+)(는|은)\\s*:",
-          "captures": {
-            "1": {
-              "name": "variable.other.saerom"
-            },
-            "2": {
-              "name": "keyword.control.saerom"
-            },
-            "3": {
-              "name": "entity.name.function.saerom"
-            },
-            "4": {
-              "name": "keyword.control.saerom"
-            }
-          }
+      "comment": "정의문 — '<사전형>라는 것은:'",
+      "match": "([가-힣A-Za-z0-9_]+?)(이라는|라는)\\s+(것은)\\s*:",
+      "captures": {
+        "1": {
+          "name": "entity.name.function.saerom"
         },
-        {
-          "comment": "어간 동사 정의",
-          "match": "([가-힣0-9_]+?)(는)\\s+(것은)\\s*:",
-          "captures": {
-            "1": {
-              "name": "entity.name.function.saerom"
-            },
-            "2": {
-              "name": "storage.type.saerom"
-            },
-            "3": {
-              "name": "keyword.control.saerom"
-            }
-          }
+        "2": {
+          "name": "storage.type.saerom"
         },
-        {
-          "comment": "정의문의 꼬리",
-          "match": "(?<=[가-힣])\\s(것은)\\s*:",
-          "captures": {
-            "1": {
-              "name": "keyword.control.saerom"
-            }
-          }
+        "3": {
+          "name": "keyword.control.saerom"
         }
-      ]
+      }
     }
   }
 }

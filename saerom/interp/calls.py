@@ -2,7 +2,7 @@
 from ..errors import (ArithmeticError_, Frame, NameError_, ParticleError,
                       RecursionError_, SaeromError, ValueError_,
                       describe_signature, quote, suggest)
-from .values import (Break, Continue, Module, NativeFunction, Return,
+from .values import (Break, Continue, Module, NativeFunction, Return, is_value,
                      kind_of, show, signature_of)
 
 MAX_DEPTH = 200
@@ -56,14 +56,15 @@ class CallMixin:
         except (IndexError, KeyError):
             raise ValueError_(f"'{name}'에 없는 자리", line)
         except (TypeError, ValueError, AttributeError) as error:
-            shown = ", ".join(f"{kind_of(v)} {show(v)}" for v in args.values())
+            shown = ", ".join(f"{kind_of(v)} {show(v)}" for _, v in pairs)
             raise ValueError_(f"'{name}'의 인자가 맞지 않음: {shown}", line)
 
     def unknown_module_call(self, module, name, args, line):
         used = ", ".join(f"'{p}'" for p in args if p) or "없음"
         ways = [signature for verb, signature in module.functions if verb == name]
         if ways:
-            shown = " / ".join(describe_signature(name, s) for s in ways)
+            shown = " / ".join(dict.fromkeys(
+                describe_signature(name, s) for s in ways))
             return ParticleError(
                 f"모듈 '{module.name}'의 '{name}'를 조사 {used}로 부를 수 없음", line,
                 hint=f"조사: {shown}")
@@ -83,7 +84,8 @@ class CallMixin:
                 f"동사 '{name}' 정의되지 않음", line,
                 hint=f"비슷한 이름: '{close}'" if close else None)
 
-        ways = " / ".join(describe_signature(name, sig) for sig in known)
+        ways = " / ".join(dict.fromkeys(
+            describe_signature(name, sig) for sig in known))
         missing = [dict(sig).keys() - set(args) for sig in known
                    if set(args) < dict(sig).keys()]
         if missing:
@@ -111,6 +113,7 @@ class CallMixin:
             self.nouns = function.module.nouns
         self.scope = function.bind(pairs)
         outer_loops, self.loops = self.loops, 0
+        outer_items, self.items = self.items, []
         self.stack.append(Frame(function.name, line))
         try:
             self.run(function.body)
@@ -124,6 +127,7 @@ class CallMixin:
             self.stack.pop()
             self.scope = outer
             self.loops = outer_loops
+            self.items = outer_items
             self.globals, self.functions, self.types, self.nouns = outer_space
 
         return self.finish(function, result, line)
@@ -133,7 +137,7 @@ class CallMixin:
         참이나 거짓만 낸다."""
         if function.kind == "noun" and result is None:
             raise ValueError_(
-                f"파생 필드 {quote(function.name)} 아무 값도 내지 않음", line)
+                f"파생 필드 {quote(function.name)} 아무 값도 돌려주지 않음", line)
         if function.kind == "predicate" and not isinstance(result, bool):
             if result is None:
                 raise ValueError_(
@@ -149,7 +153,7 @@ class CallMixin:
         args = [bound[index] for index in range(len(function.params))]
         self.stack.append(Frame(function.name, line))
         try:
-            return function.call(*args)
+            return checked_value(function.name, function.call(*args), line)
         except SaeromError as error:
             error.frames.append(Frame(function.name, line))
             if error.line is None:
@@ -171,3 +175,11 @@ class CallMixin:
             if name == verb and given <= names and len(names) == len(given) + 1:
                 found += list(names - given)
         return found or ["를"]
+
+
+def checked_value(name, value, line=None):
+    """파이썬이 돌려준 것이 새롬 값인가."""
+    if is_value(value):
+        return value
+    raise ValueError_(
+        f"{quote(name)} 새롬 값이 아닌 것을 냄: {type(value).__name__}", line)

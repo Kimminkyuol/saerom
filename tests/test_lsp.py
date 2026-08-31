@@ -9,7 +9,7 @@ from saerom.lsp.server import Server
 SOURCE = ('학생은 이런 것이다:\n'
           '    이름은 문자열이다.\n'
           '\n'
-          '학생의 소개하는 것은:\n'
+          '학생의 소개하다라는 것은:\n'
           '    학생의 이름을 돌려준다.  # 주석\n'
           '\n'
           '철수는 이름이 "김철수"인 학생이다.\n'
@@ -136,10 +136,16 @@ class SemanticTokens(unittest.TestCase):
                          [(0, 3, 2, "function"), (0, 5, 2, "ending")])
 
     def test_stem_verb_splits_too(self):
-        """어간 동사도 어간과 어미를 갈라 칠한다."""
-        spans = self.spans("글을 뒤집는 것은:\n    글을 돌려준다.\n")
-        self.assertIn((0, 3, 2, "function"), spans)
-        self.assertIn((0, 5, 1, "ending"), spans)
+        """어간 동사도 부를 때는 어간과 어미를 갈라 칠한다."""
+        spans = self.spans("글을 뒤집다라는 것은:\n    글을 돌려준다.\n"
+                           "\"가\"를 뒤집는다.\n")
+        self.assertIn((2, 5, 2, "function"), spans)
+        self.assertIn((2, 7, 2, "ending"), spans)
+
+    def test_definition_head_is_a_verb(self):
+        """머리의 사전형은 이름 토큰이지만 용언으로 칠한다."""
+        spans = self.spans("글을 뒤집다라는 것은:\n    글을 돌려준다.\n")
+        self.assertIn((0, 3, 3, "function"), spans)
 
     def test_irregular_verb_stays_whole(self):
         """'뺀' 은 어간과 어미가 한 글자에 녹아 있어 나눌 수 없다."""
@@ -188,13 +194,13 @@ class Completion(unittest.TestCase):
         self.assertNotIn("파일으로", labels)
 
     def test_offers_derived_fields(self):
-        text = "수들의 평균은:\n    수들을 모두 더한 값이다.\n\n"
+        text = "수들의 평균이라는 것은:\n    수들을 모두 더한 값이다.\n\n"
         items = self.items(text + "\n", 3, 0)
         found = [i for i in items if i["label"] == "평균"]
         self.assertEqual([i["detail"] for i in found], ["파생 필드"])
 
     def test_offers_a_stem_verb(self):
-        text = "글을 뒤집는 것은:\n    글을 돌려준다.\n\n"
+        text = "글을 뒤집다라는 것은:\n    글을 돌려준다.\n\n"
         found = [i for i in self.items(text + "\n", 3, 0) if i["label"] == "뒤집다"]
         self.assertEqual([i["detail"] for i in found], ["~를 뒤집는다"])
 

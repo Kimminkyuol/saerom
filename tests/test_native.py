@@ -116,8 +116,8 @@ class PythonModule(unittest.TestCase):
     def test_fail_is_caught(self):
         self.assertEqual(
             self.run_source("도구에서 확인하다를 가져온다.\n"
-                            "-1을 확인해 본다:\n    참\n실패하면:\n"
-                            '    "{이유}"를 출력한다.'), "음수임")
+                            "해 본다:\n    -1을 확인한다.\n까닭으로 실패하면:\n"
+                            '    "{까닭}"을 출력한다.'), "음수임")
 
     def test_python_error_becomes_value_error(self):
         error = self.fails("도구에서 나누기하다를 가져온다.\n"
@@ -163,7 +163,7 @@ class PythonModule(unittest.TestCase):
         self.write("겹침.py", "from saerom.extension import verb\n\n"
                               '@verb("두배하다", "를")\n'
                               "def twice(number):\n    return number * 2\n")
-        self.write("겹침.sr", '수를 두배하는 것은:\n    "sr"을 돌려준다.\n')
+        self.write("겹침.sr", '수를 두배하다라는 것은:\n    "sr"을 돌려준다.\n')
         self.assertEqual(
             self.run_source("겹침에서 두배하다를 가져온다.\n"
                             '"{3을 두배한 값}"을 출력한다.'), "sr")
@@ -223,9 +223,9 @@ class ChangedOnDisk(unittest.TestCase):
 
     def test_saerom_module_is_reread(self):
         source = "도구에서 두배하다를 가져온다.\n1을 두배한 값을 출력한다."
-        self.write("도구.sr", '수를 두배하는 것은:\n    2를 돌려준다.\n')
+        self.write("도구.sr", '수를 두배하다라는 것은:\n    2를 돌려준다.\n')
         self.assertEqual(self.go(source), "2")
-        self.write("도구.sr", '수를 두배하는 것은:\n    22를 돌려준다.\n')
+        self.write("도구.sr", '수를 두배하다라는 것은:\n    22를 돌려준다.\n')
         self.assertEqual(self.go(source), "22")
 
     def test_python_module_is_reread(self):
@@ -244,13 +244,13 @@ class PredicateResult(unittest.TestCase):
     """술어는 참이나 거짓만 낸다."""
 
     def test_non_boolean_is_rejected(self):
-        error = failure("수가 이상한것인 것은:\n    수에 1을 더한 값을 돌려준다.\n"
+        error = failure("수가 이상한것이다라는 것은:\n    수에 1을 더한 값을 돌려준다.\n"
                         "3이 이상한것인지를 출력한다.")
         self.assertEqual(error.kind, "값 오류")
         self.assertIn("논리값", error.message)
 
     def test_missing_return_is_rejected(self):
-        error = failure("수가 큰수인 것은:\n    만약 수가 100보다 크면:\n"
+        error = failure("수가 큰수이다라는 것은:\n    만약 수가 100보다 크면:\n"
                         "        참을 돌려준다.\n"
                         "3이 큰수인지를 출력한다.")
         self.assertEqual(error.kind, "값 오류")
@@ -258,12 +258,12 @@ class PredicateResult(unittest.TestCase):
 
     def test_boolean_passes(self):
         self.assertEqual(
-            run("수가 음수인 것은:\n    수가 0보다 작은지를 돌려준다.\n"
+            run("수가 음수이다라는 것은:\n    수가 0보다 작은지를 돌려준다.\n"
                 "-1이 음수인지를 출력한다."), "참")
 
     def test_verbs_may_return_anything(self):
         self.assertEqual(
-            run("수를 두배하는 것은:\n    수에 수를 더한 값을 돌려준다.\n"
+            run("수를 두배하다라는 것은:\n    수에 수를 더한 값을 돌려준다.\n"
                 "3을 두배한 값을 출력한다."), "6")
 
 

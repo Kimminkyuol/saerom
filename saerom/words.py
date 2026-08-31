@@ -65,7 +65,6 @@ BUILTINS = {
     "읽다": ("읽", "verb", {}),
     "입력받다": ("입력받", "verb", {}),
     "쓰다": ("쓰", "verb", {}),
-    "열다": ("열", "verb", {}),
     "실패하다": ("실패하", "verb", {}),
     "가져오다": ("가져오", "verb", {}),
     "시작하다": ("시작하", "verb", {}),
@@ -85,6 +84,7 @@ BUILTINS = {
     "아니다": ("아니", "descriptive", {"final": "아니다", "adnominal_past": "아닌",
                                       "adnominal_pres": "아닌", "interrogative": "아닌지",
                                       "conjunctive": "아니고", "conditional": "아니면"}),
+    "열다": ("열", "verb", {}),
     "크다": ("크", "descriptive", {}),
     "작다": ("작", "descriptive", {}),
     "같다": ("같", "descriptive", {}),
@@ -117,8 +117,8 @@ def stem_forms(stems):
 
 KEYWORDS = {
     "만약", "아니고", "아니면", "동안", "이런",
-    "참", "거짓", "빈목록", "번째",
-    "간격", "끝으로", "오류", "이유", "결과",
+    "참", "거짓", "빈목록",
+    "간격", "끝으로", "오류",
 }
 
 ADVERBS = {"모두", "각각", "가장", "하나라도"}
@@ -126,7 +126,7 @@ ADVERBS = {"모두", "각각", "가장", "하나라도"}
 HADA_FORMS = {
     "한다": "final", "하는": "adnominal_pres", "한": "adnominal_past",
     "하면": "conditional", "하고": "conjunctive", "하거나": "alternative",
-    "하는지": "interrogative", "하기": "nominal", "하지": "negative",
+    "하는지": "interrogative", "하지": "negative",
     "해": "auxiliary",
 }
 HADA_BY_LENGTH = sorted(HADA_FORMS, key=len, reverse=True)

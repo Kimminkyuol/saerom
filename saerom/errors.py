@@ -11,7 +11,7 @@ PARTICLE_ORDER = ["가", "의", "에서", "에게", "에", "를", "로", "보다
 ENDING_NAMES = {
     "final": "-ㄴ다", "adnominal_past": "-ㄴ", "adnominal_pres": "-는",
     "conditional": "-면", "conjunctive": "-고", "alternative": "-거나",
-    "interrogative": "-ㄴ지", "nominal": "-기", "auxiliary": "-어",
+    "interrogative": "-ㄴ지", "auxiliary": "-어",
     "negative": "-지", "quotative": "-라는",
 }
 
@@ -227,7 +227,8 @@ def format_error(error, source=None, path=None):
                    and frames[index + repeats + 1] == (name, line)):
                 repeats += 1
             innermost = index + repeats == len(frames) - 1
-            out.append(f"  {where}, {line}번째 줄, {name}" +
+            place = f", {line}번째 줄" if line else ""
+            out.append(f"  {where}{place}, {name}" +
                        ("" if name == "<맨바깥>" else " 안"))
             stripped, removed = source_line(lines, line)
             if stripped is not None:

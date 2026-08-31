@@ -48,6 +48,8 @@ class TokenMixin:
         return encode(spans)
 
     def _name_role(self, index):
+        if heads_a_definition(self.tokens, index):
+            return "function"
         return name_role(self.tokens[index],
                          self.tokens[index - 1] if index else None,
                          self.modules, self.types)
@@ -107,6 +109,18 @@ class TokenMixin:
             if len(code) < len(line):
                 spans.append((number, len(code), len(line) - len(code), "comment"))
         return spans
+
+
+def heads_a_definition(tokens, index):
+    """'<사전형>라는 것은:' 의 사전형. 이름 꼴이지만 용언이다."""
+    rest = tokens[index + 1:index + 5]
+    if len(rest) < 4 or not tokens[index].value.endswith("다"):
+        return False
+    quotative, tail, topic, colon = rest
+    return (quotative.kind == "copula" and quotative.extra[1] == "quotative"
+            and tail.kind == "name" and tail.value == "것"
+            and topic.kind == "particle" and topic.extra == "topic"
+            and colon.kind == "symbol" and colon.value == ":")
 
 
 def name_role(token, previous, modules, types):

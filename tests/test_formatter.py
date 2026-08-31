@@ -108,7 +108,7 @@ class Properties(unittest.TestCase):
 class Stems(unittest.TestCase):
     """어간을 모르면 '뒤집는'이 이름과 조사로 갈라져 조사 교정이 코드를 망가뜨린다."""
 
-    TOOL = "글을 뒤집는 것은:\n    글을 돌려준다.\n"
+    TOOL = "글을 뒤집다라는 것은:\n    글을 돌려준다.\n"
     USER = '도구에서 뒤집다를 가져온다.\n"가나"를 뒤집는 값을 출력한다.\n'
 
     def setUp(self):
@@ -131,6 +131,21 @@ class Stems(unittest.TestCase):
                               '    "나"를 뒤집는 값을 출력한다.\n'
                               '"다"를 뒤집고 "라"를 뒤집는다.\n')
         self.assertEqual(format_source(source), source)
+
+
+class Definitions(unittest.TestCase):
+    """정의문의 머리는 사전형 그대로 두어야 한다."""
+
+    HEADS = ("글을 뒤집다라는 것은:\n    글을 돌려준다.\n"
+             "수로 도시락을 만들다라는 것은:\n    수를 돌려준다.\n"
+             "수를 두배하다라는 것은:\n    수를 돌려준다.\n"
+             "수가 저축되다라는 것은:\n    수를 돌려준다.\n"
+             "수가 짝수이다라는 것은:\n    참을 돌려준다.\n"
+             "수들의 평균이라는 것은:\n    1을 돌려준다.\n"
+             "사람의 나이라는 것은:\n    사람의 나이를 돌려준다.\n")
+
+    def test_left_alone(self):
+        self.assertEqual(format_source(self.HEADS), self.HEADS)
 
 
 class Failure(unittest.TestCase):

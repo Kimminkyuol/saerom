@@ -137,6 +137,8 @@ def build(interp):
             return Handle(open(path, mode, encoding="utf-8"))
         except PermissionError:
             raise Raised("권한없음")
+        except OSError:
+            raise Raised("파일없음")
 
     def write_file(a):
         target = a["에"]
@@ -149,8 +151,11 @@ def build(interp):
         target.stream.write(to_text(a["를"]))
         return None
 
+    def show_text(a):
+        write(to_text(a["를"]))
+
     return {
-        ("출력하다", signature_of(["를"])): lambda a: write(to_text(a["를"])),
+        ("출력하다", signature_of(["를"])): show_text,
         ("바꾸다", signature_of(["를", "로"])): change,
         ("잇다", signature_of(["를"])): joined,
         ("잇다", signature_of(["를", "로"])): joined,

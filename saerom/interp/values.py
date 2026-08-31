@@ -82,6 +82,9 @@ class SortKey:
         return self.interp.with_item(self.item_name, item,
                                      lambda: self.interp.evaluate_clause(self.key, item))
 
+    def __repr__(self):
+        return "정렬 기준"
+
 class Handle:
     """자원문이 열어 둔 파일. 읽기와 쓰기를 모두 한다."""
     def __init__(self, stream):
@@ -119,7 +122,18 @@ def show(value):
     """오류에 보일 값. 문자열은 따옴표를 붙여 경계를 드러낸다."""
     return f'"{value}"' if isinstance(value, str) else to_text(value)
 
+def is_value(value):
+    """새롬이 다룰 수 있는 값인가. 파이썬 모듈의 경계에서 본다."""
+    if isinstance(value, (bool, int, float, str, Record)) or value is None:
+        return True
+    if isinstance(value, list):
+        return all(is_value(item) for item in value)
+    return False
+
+
 def kind_of(value):
+    if isinstance(value, SortKey):
+        return "정렬 기준"
     if isinstance(value, bool):
         return "논리값"
     if isinstance(value, (int, float)):

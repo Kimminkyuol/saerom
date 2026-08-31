@@ -59,14 +59,14 @@ def allomorph(word, role):
 
 
 ENDINGS = ("final", "adnominal_past", "adnominal_pres", "conditional",
-           "conjunctive", "alternative", "interrogative", "nominal", "auxiliary",
+           "conjunctive", "alternative", "interrogative", "auxiliary",
            "negative")
 
 
-def drop_riul(stem):
-    """ㄹ 받침을 뗀 어간: 살 -> 사, 열 -> 여."""
-    onset, vowel, _ = decompose(stem[-1])
-    return stem[:-1] + compose(onset, vowel)
+def drop_coda(ch):
+    """받침을 뗀다: 들 -> 드."""
+    onset, vowel, _ = decompose(ch)
+    return compose(onset, vowel)
 
 
 def conjugate(stem, pos, ending):
@@ -78,27 +78,33 @@ def conjugate(stem, pos, ending):
     last = stem[-1]
     coda = coda_of(last)
     open_syllable = coda == ""
-    trimmed = drop_riul(stem) if coda == "ㄹ" else stem
+    riul = coda == "ㄹ"
 
     if ending == "final":
         if pos == "descriptive":
             return stem + "다"
-        if open_syllable or coda == "ㄹ":
-            return trimmed[:-1] + add_coda(trimmed[-1], "ㄴ") + "다"
+        if riul:
+            return stem[:-1] + add_coda(drop_coda(last), "ㄴ") + "다"
+        if open_syllable:
+            return stem[:-1] + add_coda(last, "ㄴ") + "다"
         return stem + "는다"
 
     if ending == "adnominal_past":
-        if open_syllable or coda == "ㄹ":
-            return trimmed[:-1] + add_coda(trimmed[-1], "ㄴ")
+        if riul:
+            return stem[:-1] + add_coda(drop_coda(last), "ㄴ")
+        if open_syllable:
+            return stem[:-1] + add_coda(last, "ㄴ")
         return stem + "은"
 
     if ending == "adnominal_pres":
         if pos == "descriptive":
             return conjugate(stem, pos, "adnominal_past")
-        return trimmed + "는"
+        if riul:
+            return stem[:-1] + drop_coda(last) + "는"
+        return stem + "는"
 
     if ending == "conditional":
-        return stem + ("면" if open_syllable or coda == "ㄹ" else "으면")
+        return stem + ("면" if open_syllable or riul else "으면")
 
     if ending == "conjunctive":
         return stem + "고"
@@ -109,10 +115,7 @@ def conjugate(stem, pos, ending):
     if ending == "interrogative":
         if pos == "descriptive":
             return conjugate(stem, pos, "adnominal_past") + "지"
-        return trimmed + "는지"
-
-    if ending == "nominal":
-        return stem + "기"
+        return conjugate(stem, pos, "adnominal_pres") + "지"
 
     if ending == "negative":
         return stem + "지"

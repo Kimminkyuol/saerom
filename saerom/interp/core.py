@@ -12,7 +12,7 @@ from ..nodes import (BreakStmt, ContinueStmt, Declare, DefineStmt, ExecStmt,
 from ..parser import parse_file
 from ..parser.native import load as load_native
 from . import builtins as builtin_table
-from .calls import MAX_DEPTH
+from .calls import MAX_DEPTH, checked_value
 from .expressions import ExpressionMixin
 from .values import (Break, Continue, Function, Handle, Module, NativeFunction,
                      Record, Return, check_numbers, kind_of, show, to_text,
@@ -49,12 +49,18 @@ class Interpreter(ExpressionMixin):
             self.execute(statement)
 
     def execute(self, node):
-        """EXECUTE 에 적힌 갈래대로 문장 하나를 실행한다."""
+        """EXECUTE 에 적힌 갈래대로 문장 하나를 실행한다.
+
+        자리를 모르는 채로 올라온 오류는 이 문장의 자리를 얻는다.
+        """
         found = self.EXECUTE.get(type(node))
         if found is None:
             raise SaeromError(f"실행할 수 없는 문장: {type(node).__name__}",
                               getattr(node, "line", None))
-        found(self, node)
+        try:
+            found(self, node)
+        except SaeromError as error:
+            raise error.locate(node)
 
     def run_define(self, node):
         function = Function(node.name, node.kind, node.params, node.body)
@@ -110,16 +116,15 @@ class Interpreter(ExpressionMixin):
         return value
 
     def run_declare(self, node):
-        try:
-            self.assign(node.target, self.evaluate(node.value))
-        except SaeromError as error:
-            raise error.locate(node)
+        self.assign(node.target, self.evaluate(node.value))
 
     def run_exec(self, node):
         for call in node.calls:
             self.evaluate(call)
 
     def run_return(self, node):
+        if not self.stack:
+            raise SaeromError(f"{quote('돌려주다')} 정의문 안이 아님", node.line)
         raise Return(self.evaluate(node.value))
 
     def run_raise(self, node):
@@ -184,7 +189,9 @@ class Interpreter(ExpressionMixin):
     def load_native_module(self, name, path):
         """파이썬으로 적은 모듈. 내놓은 것들이 그대로 모듈의 알맹이가 된다."""
         native = load_native(path)
-        module = Module(name, dict(native.values), {}, {}, {})
+        module = Module(name, {key: checked_value(f"{name}의 {key}", value)
+                               for key, value in native.values.items()},
+                        {}, {}, {})
         for export in native.exports:
             function = NativeFunction(export.name, export.kind,
                                       export.particles, export.call, module)
@@ -230,11 +237,20 @@ class Interpreter(ExpressionMixin):
         if isinstance(target, Property):
             owner = self.evaluate(target.owner)
             if not isinstance(owner, Record):
-                raise SaeromError(f"필드를 매길 수 없음: '{target.field}'")
+                raise SaeromError(
+                    f"{kind_of(owner)}에 필드 {quote(target.field, 'object')} "
+                    f"매길 수 없음")
             owner.fields[target.field] = self.checked_field(
                 owner.type_name, target.field, value, getattr(target, "line", None))
             return
         raise SaeromError("값을 매길 수 없는 자리")
+
+    def bind(self, name, value):
+        """블록이 여는 이름. 값이 없으면 그 이름은 열리지 않는다."""
+        if value is None:
+            self.scope.pop(name, None)
+        else:
+            self.scope[name] = value
 
     @contextmanager
     def opened(self, name):
@@ -250,31 +266,25 @@ class Interpreter(ExpressionMixin):
 
     def run_try(self, node):
         try:
-            with self.opened("결과"):
-                if node.call is not None:
-                    self.scope["결과"] = self.evaluate(node.call)
-                self.run(node.body)
+            self.run(node.body)
         except (Raised, SaeromError) as error:
-            self.recover(node, error)
+            if node.handler is None:
+                raise
+            if node.catch is None:
+                self.run(node.handler)
+                return
+            with self.opened(node.catch):
+                self.scope[node.catch] = getattr(error, "message", str(error))
+                self.run(node.handler)
         finally:
             if node.ensure:
                 self.run(node.ensure)
-
-    def recover(self, node, error):
-        reason = getattr(error, "message", str(error))
-        for expected, body in node.handlers:
-            if expected is None or self.evaluate(expected) == reason:
-                with self.opened("이유"):
-                    self.scope["이유"] = reason
-                    self.run(body)
-                return
-        raise error
 
     def run_with(self, node):
         handle = self.evaluate(node.call)
         try:
             with self.opened(node.name):
-                self.scope[node.name] = handle
+                self.bind(node.name, handle)
                 self.run(node.body)
         finally:
             if isinstance(handle, Handle):
@@ -283,28 +293,22 @@ class Interpreter(ExpressionMixin):
     def run_loop(self, node):
         self.loops += 1
         try:
-            with self.opened("번째"):
-                if node.kind == "while":
-                    self.repeat_while(node)
-                else:
-                    self.repeat_over(node, self.loop_values(node))
+            if node.kind == "while":
+                self.repeat_while(node)
+            else:
+                self.repeat_over(node, self.loop_values(node))
         finally:
             self.loops -= 1
 
     def repeat_while(self, node):
-        index = 1
-        while True:
-            self.scope["번째"] = index
-            if not truthy(self.evaluate(node.test)):
+        while truthy(self.evaluate(node.test)):
+            if not self.run_body(node.body):
                 return
-            if not self.run_body(node.body, index):
-                return
-            index += 1
 
     def repeat_over(self, node, values):
-        for index, value in enumerate(values, 1):
+        for value in values:
             self.scope[node.variable] = value
-            if not self.run_body(node.body, index):
+            if not self.run_body(node.body):
                 return
 
     def loop_values(self, node):
@@ -325,8 +329,7 @@ class Interpreter(ExpressionMixin):
             current += -step if down else step
         return values
 
-    def run_body(self, body, index):
-        self.scope["번째"] = index
+    def run_body(self, body):
         try:
             self.run(body)
         except Break:

@@ -3,7 +3,7 @@ import os
 import unicodedata
 from collections import namedtuple
 
-from .hangul import conjugate, is_syllable
+from .hangul import is_syllable
 from .words import (PARTICLES, PARTICLES_BY_LENGTH, COMPARATIVES, COPULA,
                     COPULA_BY_LENGTH, VERB_FORMS, KEYWORDS, ADVERBS, HADA_FORMS,
                     HADA_BY_LENGTH, DOEDA_FORMS, DOEDA_BY_LENGTH, stem_forms)
@@ -81,8 +81,9 @@ def split_word(chunk, line, col, end=None, allow_particle=True,
         return [Token("copula", "이다", line, col,
                           ("descriptive", COPULA[chunk], chunk), end)]
 
-    for form in (COPULA_BY_LENGTH if allow_copula else []):
-        if chunk.endswith(form) and len(chunk) > len(form):
+    if allow_copula:
+        form = copula_suffix(chunk, known)
+        if form is not None:
             cut = end - len(form)
             head = split_word(chunk[: -len(form)], line, col, cut,
                               allow_particle, False, known, forms)
@@ -109,6 +110,20 @@ def split_word(chunk, line, col, end=None, allow_particle=True,
                 return head + [Token("particle", canonical, line, cut, role, end)]
 
     return [Token("name", chunk, line, col, end=end)]
+
+
+def copula_suffix(chunk, known):
+    """어절 끝에서 뗄 '이다'의 꼴. 몸통이 선언된 이름이면 그 꼴을 고른다.
+
+    '이라는'과 '라는'만 겹친다. 긴 것부터 떼면 '나이라는'이 '나'와 '이라는'으로
+    갈리므로, '나이'가 이미 이름이면 그쪽을 고른다.
+    """
+    fits = [form for form in COPULA_BY_LENGTH
+            if chunk.endswith(form) and len(chunk) > len(form)]
+    for form in sorted(fits, key=len):
+        if chunk[: -len(form)] in known:
+            return form
+    return fits[0] if fits else None
 
 
 ESCAPES = {"n": "\n", "t": "\t", "\\": "\\", '"': '"'}
@@ -236,48 +251,51 @@ def prescan(source, base_dir=None, chain=None):
     """소스가 선언한 이름과 고유어 동사의 어간을 모은다. 두 번째 훑기가 그
     이름은 가르지 않고 그 어간은 활용형으로 알아본다.
 
-    어간을 모르는 채로 훑으므로 정의 머리 '<어간>는 것은:' 은 아직 이름과
-    조사로 갈라져 있고, 여기서 그 모양을 찾는다.
+    정의 머리는 사전형이라 어간을 몰라도 이름 하나로 갈라지고, 여기서 그
+    모양을 찾는다.
     """
     source = unicodedata.normalize("NFC", source)
     tokens = tokenize(source, known=frozenset())
-    lines = source.replace("\t", "    ").split("\n")
-    stems = declared_stems(tokens, lines)
+    stems = declared_stems(tokens)
     stems |= imported_stems(tokens, base_dir,
                             set() if chain is None else chain)
     return Vocabulary(declared_names(tokens), frozenset(stems))
 
 
 def declared_names(tokens):
-    """어딘가에서 조사를 달고 나온 것, 그리고 '~들마다'가 도는 목록의 원소가 이름이다."""
+    """어딘가에서 조사를 달고 나온 것, 그리고 '~들마다'가 도는 목록의 원소가 이름이다.
+
+    '크기는' 처럼 명사형 활용형에 조사가 바로 붙은 어절도 이름으로 센다. 그러지
+    않으면 크기·보기·나누기가 내장 용언의 명사형에 가려 이름이 되지 못한다.
+    """
     names = set()
     for index, token in enumerate(tokens):
-        if token.kind != "name":
-            continue
         following = tokens[index + 1] if index + 1 < len(tokens) else None
-        if following is not None and following.kind == "particle":
+        if following is None or following.kind != "particle":
+            continue
+        if token.kind == "name":
             names.add(token.value)
             if token.value.endswith("들"):
                 names.add(token.value[:-1])
     return frozenset(names)
 
 
-def declared_stems(tokens, lines):
-    """정의 머리 '<어간>는 것은:' 의 어간. '하'로 끝나면 하다 동사라 뺀다.
+def declared_stems(tokens):
+    """정의 머리 '<사전형>라는 것은:' 의 어간.
 
-    적힌 꼴이 그 어간의 관형현재형과 같을 때만 받는다. 그래서 ㄹ이 빠지는
-    '만들는' 같은 것은 어간이 되지 않는다.
+    사전형이 그대로 적혀 있으니 '다'를 떼면 어간이다. '하다'·'되다'·'이다'로
+    끝나는 것은 그 어미가 따로 활용하므로 어간이 아니다.
     """
     stems = set()
     for index in range(len(tokens) - 4):
-        head, particle, tail, topic, colon = tokens[index:index + 5]
-        if head.kind != "name" or head.value.endswith("하"):
+        head, quotative, tail, topic, colon = tokens[index:index + 5]
+        if head.kind != "name" or not head.value.endswith("다"):
             continue
-        if not is_syllable(head.value[-1]):
+        if head.value.endswith(("하다", "되다", "이다")):
             continue
-        if particle.kind != "particle" or particle.extra != "topic":
+        if len(head.value) < 2 or not is_syllable(head.value[-2]):
             continue
-        if head.line != particle.line or head.end != particle.col:
+        if quotative.kind != "copula" or quotative.extra[1] != "quotative":
             continue
         if tail.kind != "name" or tail.value != "것":
             continue
@@ -285,9 +303,7 @@ def declared_stems(tokens, lines):
             continue
         if colon.kind != "symbol" or colon.value != ":":
             continue
-        written = lines[head.line - 1][head.col:particle.end]
-        if conjugate(head.value, "verb", "adnominal_pres") == written:
-            stems.add(head.value)
+        stems.add(head.value[:-1])
     return stems
 
 

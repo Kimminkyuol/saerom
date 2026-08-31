@@ -5,6 +5,7 @@ keeps a stack of (particle, expression) slots and reduces it whenever a verb
 appears.
 """
 from ..errors import SaeromError, SyntaxError_, ending_name
+from ..hangul import allomorph
 from ..lexer import Token, tokenize
 from ..nodes import (AND, OR, Call, Filter, FoldExpr, ListExpr, Literal, MapExpr,
                      Name, Node, PassiveCall, Property, QuantExpr, SelectExpr,
@@ -17,7 +18,7 @@ from .modules import fits
 class PhraseParser(ParserBase):
     """구절·호출·표현."""
 
-    VALUE_KEYWORDS = {"참", "거짓", "빈목록", "번째", "이유", "결과"}
+    VALUE_KEYWORDS = {"참", "거짓", "빈목록"}
     COLLECTION_ADVERBS = {"각각", "모두", "가장", "하나라도"}
 
     def take_verb(self):
@@ -93,7 +94,7 @@ class PhraseParser(ParserBase):
         '목록의 개수이다' 는 속성이다.
         """
         while (self.at("particle") and self.peek().value == "의"
-               and self.peek(1).kind == "name" and self.peek(1).value not in CALL_TAILS
+               and self.peek(1).kind == "name"
                and self.peek(1).value not in self.module_names
                and not (self.peek(2).kind == "copula"
                         and self.peek(2).extra[1] != "final")):
@@ -189,10 +190,6 @@ class PhraseParser(ParserBase):
             return SortSpec(key=key[0] if key else None,
                             descending=(info.name == "크다"), line=info.line)
 
-        if info.name == "실패하다" and follows_name and token.value == "이유":
-            self.next()
-            return Name(name="이유")
-
         if follows_name and tail is None:
             head = self.next().value
             partitive = [expr for particle, expr in slots if particle == "중"]
@@ -220,9 +217,12 @@ class PhraseParser(ParserBase):
 
     def apply_adverbs(self, clause, adverbs, info):
         def take(particle):
-            picked = [e for p, e in clause.slots if p == particle]
-            clause.slots = [(p, e) for p, e in clause.slots if p != particle]
-            return picked[0] if picked else None
+            """부사가 도는 대상 하나. 같은 조사가 더 있으면 관형절에 남긴다."""
+            for index, (found, expr) in enumerate(clause.slots):
+                if found == particle:
+                    del clause.slots[index]
+                    return expr
+            return None
 
         if "각각" in adverbs:
             source = take("를")
@@ -233,6 +233,8 @@ class PhraseParser(ParserBase):
         if "모두" in adverbs:
             if info.ending == "interrogative":
                 source = take("가")
+                if source is None:
+                    raise SyntaxError_("'모두'에 '~이' 자리가 없음", info.line)
                 return QuantExpr(kind="all", source=source, clause=clause, line=info.line)
             source = take("를")
             if source is None:
@@ -241,13 +243,23 @@ class PhraseParser(ParserBase):
 
         if "하나라도" in adverbs:
             source = take("중") or take("가")
+            if source is None:
+                raise SyntaxError_("'하나라도'에 '~ 중' 자리가 없음", info.line)
             return QuantExpr(kind="any", source=source, clause=clause, line=info.line)
 
         if "가장" in adverbs:
-            source = take("중") or take("가")
+            source = take("중")
+            key = take("가")
+            if source is None:
+                source, key = key, None
             if source is None:
                 raise SyntaxError_("'가장'에 '~ 중' 자리가 없음", info.line)
-            return SelectExpr(source=source, clause=clause, line=info.line)
+            left = [particle for particle, _ in clause.slots if particle]
+            if left:
+                raise SyntaxError_(
+                    "'가장'이 쓰지 않는 조사: "
+                    + ", ".join(f"'{particle}'" for particle in left), info.line)
+            return SelectExpr(source=source, clause=clause, key=key, line=info.line)
 
         return clause
 
@@ -269,8 +281,6 @@ class PhraseParser(ParserBase):
                 self.next(); return Literal(value=False)
             if token.value == "빈목록":
                 self.next(); return ListExpr(items=[])
-            if token.value in ("번째", "줄", "이유", "결과"):
-                self.next(); return Name(name=token.value, **self.where(token))
         if token.kind == "name":
             self.next()
             return Name(name=token.value, **self.where(token))
@@ -292,7 +302,9 @@ class PhraseParser(ParserBase):
             token = self.peek()
             if stop(token):
                 if len(slots) != 1:
-                    raise SyntaxError_(f"{what}이(가) 하나가 아님", token.line)
+                    raise SyntaxError_(
+                        f"{what}{allomorph(what, 'subject')} 하나가 아님",
+                        token.line)
                 return slots[0][1]
             if token.kind in ("verb", "copula"):
                 info = self.take_verb()
