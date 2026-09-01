@@ -2,7 +2,7 @@
   "name": "saerom",
   "displayName": "새롬",
   "description": "새롬 언어 지원 — 문법 강조, 자동 완성, 진단, 형식 교정",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "publisher": "saerom",
   "license": "MIT",
   "engines": {
@@ -50,9 +50,6 @@
           "ending": [
             "storage.type.saerom"
           ],
-          "adverb": [
-            "storage.modifier.saerom"
-          ],
           "keyword": [
             "keyword.control.saerom"
           ],
@@ -64,9 +61,6 @@
           ],
           "property": [
             "variable.other.property.saerom"
-          ],
-          "type": [
-            "entity.name.type.saerom"
           ],
           "namespace": [
             "entity.name.type.saerom"

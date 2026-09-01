@@ -105,15 +105,13 @@ class CallMixin:
             return self.finish(function, self.invoke_native(function, pairs, line),
                                line)
         outer = self.scope
-        outer_space = (self.globals, self.functions, self.types, self.nouns)
+        outer_space = (self.globals, self.functions, self.nouns)
         if function.module is not None:
             self.globals = function.module.values
             self.functions = function.module.functions
-            self.types = function.module.types
             self.nouns = function.module.nouns
         self.scope = function.bind(pairs)
         outer_loops, self.loops = self.loops, 0
-        outer_items, self.items = self.items, []
         self.stack.append(Frame(function.name, line))
         try:
             self.run(function.body)
@@ -127,8 +125,7 @@ class CallMixin:
             self.stack.pop()
             self.scope = outer
             self.loops = outer_loops
-            self.items = outer_items
-            self.globals, self.functions, self.types, self.nouns = outer_space
+            self.globals, self.functions, self.nouns = outer_space
 
         return self.finish(function, result, line)
 

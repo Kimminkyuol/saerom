@@ -18,7 +18,6 @@ CASE_PARTICLES = {
     "보다": ("comparative", "보다"),
     "마다": ("distributive", "마다"),
     "만큼": ("quantity", "만큼"),
-    "중": ("partitive", "중"),
 }
 RANGE_PARTICLES = {"부터": ("from", "부터"), "까지": ("to", "까지")}
 CONJ_PARTICLES = {"와": ("conj", "와"), "과": ("conj", "와")}
@@ -74,7 +73,6 @@ BUILTINS = {
     "자르다": ("자르", "verb", {"adnominal_past": "자른", "auxiliary": "잘라"}),
     "넘어가다": ("넘어가", "verb", {}),
     "돌려주다": ("돌려주", "verb", {}),
-    "정렬하다": ("정렬하", "verb", {}),
     "잇다": ("잇", "verb", {"auxiliary": "이어", "adnominal_past": "이은",
                            "conditional": "이으면"}),
     "않다": ("않", "descriptive", {"final": "않다", "adnominal_past": "않은",
@@ -116,12 +114,10 @@ def stem_forms(stems):
 
 
 KEYWORDS = {
-    "만약", "아니고", "아니면", "동안", "이런",
-    "참", "거짓", "빈목록",
+    "만약", "아니고", "아니면", "동안",
+    "참", "거짓",
     "간격", "끝으로", "오류",
 }
-
-ADVERBS = {"모두", "각각", "가장", "하나라도"}
 
 HADA_FORMS = {
     "한다": "final", "하는": "adnominal_pres", "한": "adnominal_past",
@@ -137,9 +133,9 @@ DOEDA_FORMS = {
 }
 DOEDA_BY_LENGTH = sorted(DOEDA_FORMS, key=len, reverse=True)
 
-CALL_TAILS = {"값", "것", "값들", "것들", "나머지"}
+CALL_TAILS = {"값", "나머지"}
 
-STRUCTURAL = {"중", "마다", "부터", "까지", "간격", "모듈"}
+STRUCTURAL = {"마다", "부터", "까지", "간격", "모듈"}
 
 BUILTIN_SIGNATURES = {
     "출력하다": [{"를"}],
@@ -157,8 +153,6 @@ BUILTIN_SIGNATURES = {
     "끝나다": [{"가", "로"}],
     "다듬다": [{"를"}],
     "자르다": [{"를", "로"}],
-    "정렬하다": [{"를"}, {"를", "로"}],
-    "정렬되다": [{"가"}, {"가", "로"}],
     "읽다": [{"를"}],
     "입력받다": [set()],
     "열다": [{"를"}],

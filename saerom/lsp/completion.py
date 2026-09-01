@@ -1,27 +1,26 @@
 """자동 완성과 호버."""
 from ..errors import describe_signature
 from ..hangul import allomorph
-from ..words import ADVERBS, KEYWORDS
+from ..words import KEYWORDS
 
 PARTICLE_HELP = {
     "는": "선언", "가": "비교의 주어", "를": "목적어",
     "에": "도착지, 덧셈·곱셈의 기준", "에서": "출처, 뺄셈의 기준",
     "에게": "수신자", "로": "수단, 나눗셈의 기준, 변환 결과",
     "의": "필드 접근, 모듈 이름공간", "부터": "범위 시작", "까지": "범위 끝",
-    "마다": "반복", "보다": "비교 기준", "만큼": "수량",
-    "중": "부분 선택", "와": "접속",
+    "마다": "반복", "보다": "비교 기준", "만큼": "수량", "와": "접속",
 }
 
 COMPARATIVE_HELP = {"이상": "≥", "이하": "≤", "초과": ">", "미만": "<"}
 
 OFFERED = ["는", "가", "를", "의", "에", "에서", "에게", "로", "보다",
-           "와", "부터", "까지", "마다", "만큼", "중"]
+           "와", "부터", "까지", "마다", "만큼"]
 
 ROLE_OF = {"는": "topic", "가": "subject", "를": "object",
            "로": "instrument", "와": "conj"}
 
 # LSP CompletionItemKind
-VARIABLE, FUNCTION, MODULE, KEYWORD, STRUCT, SNIPPET, OPERATOR = 6, 3, 9, 14, 22, 15, 24
+VARIABLE, FUNCTION, MODULE, KEYWORD, SNIPPET, OPERATOR = 6, 3, 9, 14, 15, 24
 FIELD = 5
 
 
@@ -44,12 +43,10 @@ class CompletionMixin:
                            for name in sorted(self.verbs)]))
         groups.append((2, [item(name, FIELD, "파생 필드")
                            for name in sorted(self.nouns)]))
-        groups.append((3, [item(name, STRUCT, "구조체") for name in sorted(self.types)]))
         groups.append((3, [item(name, MODULE, "모듈") for name in sorted(self.modules)]))
         groups.append((3, [item(name, OPERATOR, f"견줌 — {mark}")
                            for name, mark in sorted(COMPARATIVE_HELP.items())]))
         groups.append((4, [item(name, KEYWORD, "예약어") for name in sorted(KEYWORDS)]))
-        groups.append((4, [item(name, KEYWORD, "부사") for name in sorted(ADVERBS)]))
         groups.append((5, [dict(snippet) for snippet in SNIPPETS]))
 
         out = []
@@ -79,8 +76,6 @@ class CompletionMixin:
                 return f"모듈 `{token.value}`"
             if token.value in self.nouns:
                 return f"파생 필드 `{token.value}`"
-            if token.value in self.types:
-                return f"구조체 `{token.value}`"
             return f"이름 `{token.value}`"
         return None
 
@@ -144,13 +139,10 @@ SNIPPETS = [
     {"label": "만약", "kind": SNIPPET, "detail": "조건문",
      "insertText": "만약 ${1:조건}이면:\n    ${0}", "insertTextFormat": 2},
     {"label": "반복한다", "kind": SNIPPET, "detail": "반복문",
-     "insertText": "${1:1}부터 ${2:10}까지의 ${3:수}들마다 반복한다:\n    ${0}",
+     "insertText": "${1:1}부터 ${2:10}까지의 ${3:수}마다 반복한다:\n    ${0}",
      "insertTextFormat": 2},
     {"label": "라는 것은", "kind": SNIPPET, "detail": "용언 정의",
      "insertText": "${1:값}을 ${2:이름}하다라는 것은:\n    ${0}", "insertTextFormat": 2},
     {"label": "이라는 것은", "kind": SNIPPET, "detail": "파생 필드 정의",
      "insertText": "${1:소유자}의 ${2:이름}이라는 것은:\n    ${0}", "insertTextFormat": 2},
-    {"label": "이런 것이다", "kind": SNIPPET, "detail": "구조체 선언",
-     "insertText": "${1:이름}은 이런 것이다:\n    ${2:필드}는 ${3:정수}이다.\n${0}",
-     "insertTextFormat": 2},
 ]

@@ -2,30 +2,23 @@
 import sys
 from contextlib import contextmanager
 
-from ..errors import (NameError_, Raised, SaeromError, ValueError_, quote,
-                      suggest)
-from ..hangul import allomorph
+from ..errors import NameError_, Raised, SaeromError, quote, suggest
 from ..nodes import (BreakStmt, ContinueStmt, Declare, DefineStmt, ExecStmt,
-                     ExprStmt, IfStmt, ImportStmt, Literal, LoopStmt, Name,
-                     NounDef, Property, RaiseStmt, RecordType, ReturnStmt,
-                     TryStmt, WithStmt)
+                     ExprStmt, IfStmt, ImportStmt, LoopStmt, Name, NounDef,
+                     Property, RaiseStmt, ReturnStmt, TryStmt, WithStmt)
 from ..parser import parse_file
 from ..parser.native import load as load_native
 from . import builtins as builtin_table
 from .calls import MAX_DEPTH, checked_value
 from .expressions import ExpressionMixin
 from .values import (Break, Continue, Function, Handle, Module, NativeFunction,
-                     Record, Return, check_numbers, kind_of, show, to_text,
-                     truthy)
+                     Return, check_numbers, kind_of, to_text, truthy)
 
 
 class Interpreter(ExpressionMixin):
     """구문트리를 실행한다."""
 
-    TYPE_VALUES = ("정수", "실수", "문자열", "논리값",
-                   "정수들", "실수들", "문자열들", "논리값들")
-    BASIC_TYPES = ("정수", "실수", "문자열", "논리값", "목록")
-    TYPE_HINT = "자료형: 정수, 실수, 문자열, 논리값, 목록, <자료형>들, 구조체 이름"
+    TYPE_VALUES = ("정수", "실수", "문자열", "논리값")
 
     def __init__(self, out=sys.stdout):
         sys.setrecursionlimit(max(sys.getrecursionlimit(), MAX_DEPTH * 40))
@@ -34,12 +27,9 @@ class Interpreter(ExpressionMixin):
         self.scope = self.globals
         self.functions = {}
         self.nouns = {}
-        self.types = {}
-        self.items = []
         self.stack = []
         self.modules = {}
         self.builtins = builtin_table.build(self)
-        self.empty_slots = {}
         self.verb_names = set()
         self.verb_names_key = None
         self.loops = 0
@@ -69,51 +59,6 @@ class Interpreter(ExpressionMixin):
     def run_noun_def(self, node):
         self.nouns[node.name] = Function(node.name, "noun",
                                          [("의", node.owner)], node.body)
-
-    def run_record_type(self, node):
-        fields = {name: written_type(value) for name, value in node.fields}
-        self.types[node.name] = fields
-        for name, declared in fields.items():
-            if not self.type_exists(declared):
-                raise NameError_(
-                    f"구조체 '{node.name}'의 필드 '{name}'의 자료형 "
-                    f"'{declared}' 없음", node.line, hint=self.TYPE_HINT)
-
-    def type_exists(self, declared):
-        if declared in self.BASIC_TYPES or declared in self.types:
-            return True
-        return declared.endswith("들") and self.type_exists(declared[:-1])
-
-    def fits_type(self, value, declared):
-        if declared == "정수":
-            return isinstance(value, int) and not isinstance(value, bool)
-        if declared == "실수":
-            return isinstance(value, (int, float)) and not isinstance(value, bool)
-        if declared == "문자열":
-            return isinstance(value, str)
-        if declared == "논리값":
-            return isinstance(value, bool)
-        if declared == "목록":
-            return isinstance(value, list)
-        if declared in self.types:
-            return isinstance(value, Record) and value.type_name == declared
-        return (isinstance(value, list)
-                and all(self.fits_type(item, declared[:-1]) for item in value))
-
-    def checked_field(self, type_name, field, value, line):
-        """구조체 선언에 적어 둔 필드인가, 자료형에 맞는 값인가."""
-        fields = self.types.get(type_name) or {}
-        if fields and field not in fields:
-            raise NameError_(
-                f"구조체 '{type_name}'에 필드 {quote(field)} 없음", line,
-                hint="필드: " + ", ".join(fields))
-        declared = fields.get(field)
-        if declared is not None and not self.fits_type(value, declared):
-            raise ValueError_(
-                f"구조체 '{type_name}'의 필드 {quote(field)} "
-                f"{declared}{allomorph(declared, 'subject')} 아님: "
-                f"{kind_of(value)} {show(value)}", line)
-        return value
 
     def run_declare(self, node):
         self.assign(node.target, self.evaluate(node.value))
@@ -161,7 +106,6 @@ class Interpreter(ExpressionMixin):
         WithStmt: lambda self, node: self.run_with(node),
         DefineStmt: run_define,
         NounDef: run_noun_def,
-        RecordType: run_record_type,
         ImportStmt: lambda self, node: self.run_import(node),
         ReturnStmt: run_return,
         RaiseStmt: run_raise,
@@ -177,8 +121,7 @@ class Interpreter(ExpressionMixin):
         statements, _, _ = parse_file(path)
         inner = Interpreter(self.out)
         inner.modules = self.modules
-        module = Module(name, inner.globals, inner.functions, inner.types,
-                        inner.nouns)
+        module = Module(name, inner.globals, inner.functions, inner.nouns)
         self.modules[path] = module
         inner.run(statements)
         for function in list(inner.functions.values()) + list(inner.nouns.values()):
@@ -190,8 +133,7 @@ class Interpreter(ExpressionMixin):
         """파이썬으로 적은 모듈. 내놓은 것들이 그대로 모듈의 알맹이가 된다."""
         native = load_native(path)
         module = Module(name, {key: checked_value(f"{name}의 {key}", value)
-                               for key, value in native.values.items()},
-                        {}, {}, {})
+                               for key, value in native.values.items()}, {}, {})
         for export in native.exports:
             function = NativeFunction(export.name, export.kind,
                                       export.particles, export.call, module)
@@ -219,13 +161,9 @@ class Interpreter(ExpressionMixin):
             if name in module.values:
                 self.globals[name] = module.values[name]
                 taken = True
-            if name in module.types:
-                self.types[name] = module.types[name]
-                taken = True
             if not taken:
                 close = suggest(name, {verb for verb, _ in module.functions}
-                                | set(module.nouns) | set(module.values)
-                                | set(module.types))
+                                | set(module.nouns) | set(module.values))
                 raise NameError_(
                     f"모듈 '{node.module}'에 '{name}' 없음", node.line,
                     hint=f"비슷한 이름: '{close}'" if close else None)
@@ -236,12 +174,11 @@ class Interpreter(ExpressionMixin):
             return
         if isinstance(target, Property):
             owner = self.evaluate(target.owner)
-            if not isinstance(owner, Record):
+            if not isinstance(owner, dict):
                 raise SaeromError(
-                    f"{kind_of(owner)}에 필드 {quote(target.field, 'object')} "
+                    f"{kind_of(owner)}에 열쇠 {quote(target.field, 'object')} "
                     f"매길 수 없음")
-            owner.fields[target.field] = self.checked_field(
-                owner.type_name, target.field, value, getattr(target, "line", None))
+            owner[target.field] = value
             return
         raise SaeromError("값을 매길 수 없는 자리")
 
@@ -312,12 +249,6 @@ class Interpreter(ExpressionMixin):
                 return
 
     def loop_values(self, node):
-        if node.kind != "range":
-            values = self.evaluate(node.source)
-            if not isinstance(values, list):
-                raise SaeromError("'마다' 앞이 목록이 아님", node.line)
-            return values
-
         start, stop = self.evaluate(node.start), self.evaluate(node.stop)
         step = self.evaluate(node.step) if node.step is not None else 1
         check_numbers("반복하다", start, stop, step)
@@ -337,33 +268,3 @@ class Interpreter(ExpressionMixin):
         except Continue:
             pass
         return True
-
-    def build_record(self, node):
-        declared = self.types.get(node.type)
-        if declared is None:
-            raise NameError_(f"구조체 '{node.type}' 정의되지 않음", node.line)
-        given = [name for name, _ in node.fields]
-        listed = "필드: " + ", ".join(declared)
-        for name in given:
-            if name not in declared:
-                raise NameError_(f"구조체 '{node.type}'에 없는 필드: '{name}'",
-                                 node.line, hint=listed)
-        for name in declared:
-            if name not in given:
-                raise NameError_(
-                    f"구조체 '{node.type}'의 필드 {quote(name, 'subject')} 빠짐",
-                    node.line, hint=listed)
-        values = {name: self.evaluate(value) for name, value in node.fields}
-        return Record(node.type,
-                      [(name, self.checked_field(node.type, name, values[name],
-                                                 node.line))
-                       for name in declared])
-
-
-def written_type(value):
-    """구조체 선언에 적어 둔 자료형. 이름이 아니면 적힌 그대로 보인다."""
-    if isinstance(value, Name):
-        return value.name
-    if isinstance(value, Literal):
-        return to_text(value.value)
-    return "값"

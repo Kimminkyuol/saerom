@@ -7,9 +7,8 @@ appears.
 from ..errors import SaeromError, SyntaxError_, ending_name
 from ..hangul import allomorph
 from ..lexer import Token, tokenize
-from ..nodes import (AND, OR, Call, Filter, FoldExpr, ListExpr, Literal, MapExpr,
-                     Name, Node, PassiveCall, Property, QuantExpr, SelectExpr,
-                     SortSpec, Template)
+from ..nodes import (AND, OR, Call, DictExpr, ListExpr, Literal, Name, Node,
+                     PassiveCall, Property, Template)
 from ..words import CALL_TAILS, COMPARATIVES, STRUCTURAL
 from .base import ParserBase, VerbInfo
 from .modules import fits
@@ -18,8 +17,7 @@ from .modules import fits
 class PhraseParser(ParserBase):
     """구절·호출·표현."""
 
-    VALUE_KEYWORDS = {"참", "거짓", "빈목록"}
-    COLLECTION_ADVERBS = {"각각", "모두", "가장", "하나라도"}
+    VALUE_KEYWORDS = {"참", "거짓"}
 
     def take_verb(self):
         """Consume a verb (and its 않다 partner, if negated)."""
@@ -84,7 +82,7 @@ class PhraseParser(ParserBase):
             return True
         if token.kind == "keyword":
             return token.value in cls.VALUE_KEYWORDS
-        return token.kind == "symbol" and token.value == "["
+        return token.kind == "symbol" and token.value in "[{"
 
     def chain(self, value):
         """'의' 로 이어지는 필드를 목록식 전체가 아니라 원소 하나에 붙인다.
@@ -156,23 +154,21 @@ class PhraseParser(ParserBase):
         slots[last] = (None, slots[last][1])
         return slots
 
-    def takes_every_slot(self, info, adverbs):
-        """'이다'가 어떤 술어로 풀릴지는 실행 때 갈리고, 피동은 머리 명사에서,
-        모음 부사는 '~들을' 자리에서 대상을 받는다. 어느 쪽도 조사 자리를
-        미리 나눌 수 없다."""
-        return (info.name == "이다" or info.pos == "passive"
-                or bool(self.COLLECTION_ADVERBS & set(adverbs)))
+    def takes_every_slot(self, info):
+        """'이다'가 어떤 술어로 풀릴지는 실행 때 갈리고, 피동은 머리 명사에서
+        대상을 받는다. 어느 쪽도 조사 자리를 미리 나눌 수 없다."""
+        return info.name == "이다" or info.pos == "passive"
 
-    def reduce(self, slots, adverbs, info):
+    def reduce(self, slots, info):
         """쌓인 구절과 관형형 용언 하나를 식으로 만든다."""
-        if self.takes_every_slot(info, adverbs):
+        if self.takes_every_slot(info):
             kept = []
         else:
             kept, slots = self.split_slots(info.name, slots)
         self._kept = kept
         if info.name == "이다":
             slots, info = self.fold_comparison(self.copula_slots(slots), info)
-        clause = Call(verb=info.name, slots=slots, adverbs=adverbs,
+        clause = Call(verb=info.name, slots=slots,
                       negated=info.negated, tail=None,
                       asks=info.ending == "interrogative", **self.where_verb(info))
 
@@ -180,27 +176,13 @@ class PhraseParser(ParserBase):
         follows_name = token.kind == "name"
         tail = token.value if follows_name and token.value in CALL_TAILS else None
 
-        if (follows_name and token.value in ("것", "것들")
-                and any(particle == "중" for particle, _ in slots)):
-            tail = None
-
-        if follows_name and token.value == "순":
-            self.next()
-            key = [expr for particle, expr in slots if particle == "가"]
-            return SortSpec(key=key[0] if key else None,
-                            descending=(info.name == "크다"), line=info.line)
-
         if follows_name and tail is None:
             head = self.next().value
-            partitive = [expr for particle, expr in slots if particle == "중"]
-            rest = [(p, e) for p, e in slots if p != "중"]
             if info.pos == "passive":
                 return PassiveCall(verb=info.name, head=Name(name=head),
-                                   slots=rest, **self.where_verb(info))
-            source = partitive[0] if partitive else Name(name=head)
-            item = head[:-1] if head.endswith("들") else head
-            clause.slots = rest
-            return Filter(source=source, item=item, clause=clause, line=info.line)
+                                   slots=slots, **self.where_verb(info))
+            raise SyntaxError_(f"관형형 다음이 '값'이 아님: '{head}'",
+                               **self.where(token))
 
         if tail is not None:
             self.next()
@@ -212,54 +194,6 @@ class PhraseParser(ParserBase):
             if target:
                 return PassiveCall(verb=info.name, head=target[0], slots=rest,
                                    **self.where_verb(info))
-
-        return self.apply_adverbs(clause, adverbs, info)
-
-    def apply_adverbs(self, clause, adverbs, info):
-        def take(particle):
-            """부사가 도는 대상 하나. 같은 조사가 더 있으면 관형절에 남긴다."""
-            for index, (found, expr) in enumerate(clause.slots):
-                if found == particle:
-                    del clause.slots[index]
-                    return expr
-            return None
-
-        if "각각" in adverbs:
-            source = take("를")
-            if source is None:
-                raise SyntaxError_("'각각'에 '~을' 자리가 없음", info.line)
-            return MapExpr(source=source, clause=clause, line=info.line)
-
-        if "모두" in adverbs:
-            if info.ending == "interrogative":
-                source = take("가")
-                if source is None:
-                    raise SyntaxError_("'모두'에 '~이' 자리가 없음", info.line)
-                return QuantExpr(kind="all", source=source, clause=clause, line=info.line)
-            source = take("를")
-            if source is None:
-                raise SyntaxError_("'모두'에 '~을' 자리가 없음", info.line)
-            return FoldExpr(source=source, clause=clause, line=info.line)
-
-        if "하나라도" in adverbs:
-            source = take("중") or take("가")
-            if source is None:
-                raise SyntaxError_("'하나라도'에 '~ 중' 자리가 없음", info.line)
-            return QuantExpr(kind="any", source=source, clause=clause, line=info.line)
-
-        if "가장" in adverbs:
-            source = take("중")
-            key = take("가")
-            if source is None:
-                source, key = key, None
-            if source is None:
-                raise SyntaxError_("'가장'에 '~ 중' 자리가 없음", info.line)
-            left = [particle for particle, _ in clause.slots if particle]
-            if left:
-                raise SyntaxError_(
-                    "'가장'이 쓰지 않는 조사: "
-                    + ", ".join(f"'{particle}'" for particle in left), info.line)
-            return SelectExpr(source=source, clause=clause, key=key, line=info.line)
 
         return clause
 
@@ -279,8 +213,6 @@ class PhraseParser(ParserBase):
                 self.next(); return Literal(value=True)
             if token.value == "거짓":
                 self.next(); return Literal(value=False)
-            if token.value == "빈목록":
-                self.next(); return ListExpr(items=[])
         if token.kind == "name":
             self.next()
             return Name(name=token.value, **self.where(token))
@@ -293,11 +225,20 @@ class PhraseParser(ParserBase):
                     items.append(self.bracket_item())
             self.expect("symbol", "]")
             return ListExpr(items=items)
+        if token.kind == "symbol" and token.value == "{":
+            self.next()
+            items = []
+            if not self.at("symbol", "}"):
+                items.append(self.dict_entry())
+                while self.accept("symbol", ","):
+                    items.append(self.dict_entry())
+            self.expect("symbol", "}")
+            return DictExpr(items=items, **self.where(token))
         raise SyntaxError_(f"값이 아님: {self.describe(token)}", **self.where(token))
 
     def reduce_until(self, stop, what):
         """Run the slot machine until `stop`, then require one value."""
-        slots, adverbs = [], []
+        slots = []
         while True:
             token = self.peek()
             if stop(token):
@@ -308,13 +249,8 @@ class PhraseParser(ParserBase):
                 return slots[0][1]
             if token.kind in ("verb", "copula"):
                 info = self.take_verb()
-                value = self.reduce(slots, adverbs, info)
+                value = self.reduce(slots, info)
                 slots = self.push(self._kept, value)
-                adverbs = []
-                continue
-            if token.kind == "adverb":
-                adverbs.append(token.value)
-                self.next()
                 continue
             slots = self.push(slots, self.primary())
 
@@ -322,6 +258,13 @@ class PhraseParser(ParserBase):
         """Inside [ ] a full expression may appear, so reduce until , or ]."""
         return self.reduce_until(
             lambda t: t.kind == "symbol" and t.value in ",]", "목록의 항")
+
+    def dict_entry(self):
+        """사전의 '<열쇠>: <값>' 한 쌍. 열쇠는 맨 이름만 받는다."""
+        key = self.expect("name").value
+        self.expect("symbol", ":")
+        return key, self.reduce_until(
+            lambda t: t.kind == "symbol" and t.value in ",}", "사전의 값")
 
     def fragment(self, source, token):
         """Parse one {...} of a 보간 string as a standalone expression.
@@ -334,7 +277,6 @@ class PhraseParser(ParserBase):
         inner.known = self.known
         inner.stems = self.stems
         inner.signatures = self.signatures
-        inner.types = self.types
         inner.module_names = self.module_names
         inner.base_dir = self.base_dir
         try:
@@ -370,7 +312,7 @@ class PhraseParser(ParserBase):
         gives 같다 the 가 slot of 작다, but never its 보다 slot."""
         left, joiner = None, AND
         subject = None
-        slots, adverbs = [], []
+        slots = []
         while True:
             token = self.peek()
 
@@ -382,9 +324,8 @@ class PhraseParser(ParserBase):
             if token.kind in ("verb", "copula"):
                 info = self.take_verb()
                 if info.ending in ("adnominal_past", "adnominal_pres"):
-                    value = self.reduce(slots, adverbs, info)
+                    value = self.reduce(slots, info)
                     slots = self.push(self._kept, value)
-                    adverbs = []
                     continue
 
                 if not any(p == "가" for p, _ in slots) and subject is not None:
@@ -396,13 +337,11 @@ class PhraseParser(ParserBase):
                 if info.name == "이다":
                     slots, info = self.fold_comparison(
                         self.copula_slots(slots), info)
-                piece = self.apply_adverbs(
-                    Call(verb=info.name, slots=slots, adverbs=adverbs,
-                         negated=info.negated, tail=None, **self.where_verb(info)),
-                    adverbs, info)
-                slots, adverbs = [], []
+                piece = Call(verb=info.name, slots=slots, negated=info.negated,
+                             tail=None, **self.where_verb(info))
+                slots = []
                 left = piece if left is None else Call(
-                    verb=joiner, slots=[(None, left), (None, piece)], adverbs=[],
+                    verb=joiner, slots=[(None, left), (None, piece)],
                     negated=False, tail=None, line=info.line)
                 if info.ending == "conditional":
                     return left
@@ -415,16 +354,11 @@ class PhraseParser(ParserBase):
                 raise SyntaxError_(
                     f"조건에 쓸 수 없는 어미: {ending_name(info.ending)}", info.line)
 
-            if token.kind == "adverb":
-                adverbs.append(token.value)
-                self.next()
-                continue
-
             slots = self.push(slots, self.primary())
 
     def value_until_copula(self):
         """Right-hand side of a 선언문: read until the closing 이다."""
-        slots, adverbs = [], []
+        slots = []
         while True:
             token = self.peek()
 
@@ -434,22 +368,13 @@ class PhraseParser(ParserBase):
                     raise SyntaxError_("선언문의 값이 하나가 아님", token.line)
                 return slots[0][1]
 
-            if self.looks_like_record_end():
-                return self.record_literal(slots)
-
             if token.kind in ("verb", "copula"):
                 info = self.take_verb()
                 if info.ending in ("adnominal_past", "adnominal_pres", "interrogative"):
-                    value = self.reduce(slots, adverbs, info)
+                    value = self.reduce(slots, info)
                     slots = self.push(self._kept, value)
-                    adverbs = []
                     continue
                 raise SyntaxError_(
                     f"선언문에 쓸 수 없는 어미: {ending_name(info.ending)}", token.line)
-
-            if token.kind == "adverb":
-                adverbs.append(token.value)
-                self.next()
-                continue
 
             slots = self.push(slots, self.primary())

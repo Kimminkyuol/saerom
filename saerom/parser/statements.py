@@ -3,10 +3,8 @@ import os
 
 from ..errors import SaeromError, SyntaxError_, ending_name, quote
 from ..nodes import (BreakStmt, Call, ContinueStmt, Declare, DefineStmt, ExecStmt,
-                     ExprStmt, Filter, FoldExpr, IfStmt, ImportStmt, Literal,
-                     LoopStmt, MapExpr, Name, NounDef, PassiveCall, Property,
-                     RaiseStmt, RecordLit, RecordType, ReturnStmt, SelectExpr,
-                     TryStmt, WithStmt)
+                     ExprStmt, IfStmt, ImportStmt, LoopStmt, Name, NounDef,
+                     Property, RaiseStmt, ReturnStmt, TryStmt, WithStmt)
 from ..words import BUILTIN_SIGNATURES
 from .modules import ordered, parse_file, resolve_module
 from .native import load as load_native
@@ -45,7 +43,11 @@ class StatementParser(PhraseParser):
         return self.exec_or_loop()
 
     def try_target(self):
-        """A 선언문 target: <이름> or <이름>의<속성>... followed by 은/는."""
+        """A 선언문 target: <이름> or <이름>의<속성>... followed by 은/는 or 이/가.
+
+        '이/가'는 그 줄이 '<식>이다.'로 끝날 때만 선언으로 읽는다. 그래야
+        '말이 "안녕"을 담는다.' 가 선언으로 넘어가지 않는다.
+        """
         i = self.pos
         if self.tokens[i].kind != "name":
             if (self.tokens[i].kind == "keyword"
@@ -62,43 +64,28 @@ class StatementParser(PhraseParser):
             field = self.tokens[i + 1]
             node = Property(owner=node, field=field.value, **self.where(field))
             i += 2
-        if self.tokens[i].kind == "particle" and self.tokens[i].extra == "topic":
+        if self.tokens[i].kind == "particle" and (
+                self.tokens[i].extra == "topic"
+                or (self.tokens[i].extra == "subject" and self.ends_with_copula())):
             self.pos = i + 1
             return node
         return None
 
-    def declaration(self, target, line):
-        """선언문. 'X는 이런 것이다:' 는 구조체 선언, 'X는 이런 <틀>이다:' 는
-        블록으로 구조체 만들기다."""
-        if self.at("keyword", "이런"):
-            self.next()
-            type_name = self.expect("name").value
-            self.expect("copula")
-            body = self.block()
-            if type_name == "것":
-                if not isinstance(target, Name):
-                    raise SyntaxError_("구조체 이름에 '의'가 있음", line)
-                self.types.add(target.name)
-                return RecordType(name=target.name, fields=self.record_fields(body),
-                                  line=line)
-            return Declare(target=target, line=line,
-                           value=RecordLit(type=type_name, fields=self.record_fields(body),
-                                           line=line))
+    def ends_with_copula(self):
+        """이 줄이 '<식>이다.' 로 끝나는가."""
+        end = self.line_end()
+        return (end - self.pos >= 2
+                and self.tokens[end - 1].kind == "symbol"
+                and self.tokens[end - 1].value == "."
+                and self.tokens[end - 2].kind == "copula"
+                and self.tokens[end - 2].extra[1] == "final")
 
+    def declaration(self, target, line):
+        """선언문."""
         value = self.value_until_copula()
         self.expect("symbol", ".")
         self.expect("newline")
         return Declare(target=target, value=value, line=line)
-
-    @staticmethod
-    def record_fields(body):
-        fields = []
-        for statement in body:
-            if not isinstance(statement, Declare) or not isinstance(statement.target, Name):
-                raise SyntaxError_("구조체 안이 선언문이 아님",
-                                  getattr(statement, "line", None))
-            fields.append((statement.target.name, statement.value))
-        return fields
 
     def looks_like_definition(self):
         """'<이름><은/는>:' 으로 끝나는 줄. '것은:' 이 아닌 것도 여기로 보내야
@@ -192,8 +179,6 @@ class StatementParser(PhraseParser):
         for name in names:
             if name in other.signatures:
                 self.signatures.setdefault(name, []).extend(other.signatures[name])
-            if name in other.types:
-                self.types.add(name)
 
     def raise_statement(self):
         line = self.peek().line
@@ -301,55 +286,8 @@ class StatementParser(PhraseParser):
                 break
         return IfStmt(branches=branches, otherwise=otherwise)
 
-    def looks_like_record_end(self):
-        """`... 인 <틀이름>이다.` -- a one-line 틀 만들기.
-
-        The name must be a declared 틀, otherwise `반이 반번호인 학생들이다`
-        would read as a record instead of a 걸러내기.
-        """
-        end = self.line_end()
-        return (end - self.pos >= 3
-                and self.tokens[end - 1].kind == "symbol" and self.tokens[end - 1].value == "."
-                and self.tokens[end - 2].kind == "copula"
-                and self.tokens[end - 2].extra[1] == "final"
-                and self.tokens[end - 3].kind == "name"
-                and self.tokens[end - 3].value in self.types
-                and self.tokens[end - 4].kind == "copula"
-                and self.tokens[end - 4].extra[1] == "adnominal_past")
-
-    def record_literal(self, slots):
-        """<속성>이 <값>이고 ... <속성>이 <값>인 <틀>이다."""
-        line = self.peek().line
-        fields = []
-        pending = list(slots)
-        adverbs = []
-        while True:
-            token = self.peek()
-            if token.kind == "copula" and token.extra[1] in ("conjunctive", "adnominal_past"):
-                ending = token.extra[1]
-                self.next()
-                if len(pending) != 2 or not isinstance(pending[0][1], Name):
-                    raise SyntaxError_("구조체 필드가 '<이름>이 <값>' 짝이 아님", line)
-                fields.append((pending[0][1].name, pending[1][1]))
-                pending = []
-                if ending == "adnominal_past":
-                    type_name = self.expect("name").value
-                    self.expect("copula")
-                    return RecordLit(type=type_name, fields=fields, line=line)
-                continue
-            if token.kind in ("verb", "copula"):
-                info = self.take_verb()
-                value = self.reduce(pending[1:], adverbs, info)
-                pending = pending[:1]
-                pending = self.push(pending, value)
-                adverbs = []
-                continue
-            if token.kind == "adverb":
-                adverbs.append(token.value); self.next(); continue
-            pending = self.push(pending, self.primary())
-
     def exec_or_loop(self):
-        slots, adverbs, calls = [], [], []
+        slots, calls = [], []
         aux = None
         while True:
             token = self.peek()
@@ -358,7 +296,7 @@ class StatementParser(PhraseParser):
                 info = self.take_verb()
 
                 if info.name == "반복하다" and info.ending == "final":
-                    return self.loop(slots, adverbs, info.line)
+                    return self.loop(slots, info.line)
 
                 if info.name in ("빠져나가다", "넘어가다") and info.ending == "final":
                     self.expect("symbol", ".")
@@ -392,22 +330,21 @@ class StatementParser(PhraseParser):
                     if name is None:
                         raise SyntaxError_(
                             "자원문에 열어 둔 것을 받을 이름이 없음", aux.line)
-                    call = Call(verb=aux.name, slots=kept, adverbs=[],
+                    call = Call(verb=aux.name, slots=kept,
                                 negated=False, tail=None, line=aux.line)
                     return WithStmt(call=call, name=name, body=self.block(),
                                     line=aux.line)
 
                 if info.ending in ("adnominal_past", "adnominal_pres", "interrogative"):
-                    value = self.reduce(slots, adverbs, info)
+                    value = self.reduce(slots, info)
                     slots = self.push(self._kept, value)
-                    adverbs = []
                     continue
 
                 if info.ending in ("final", "conjunctive"):
-                    calls.append(Call(verb=info.name, slots=slots, adverbs=adverbs,
+                    calls.append(Call(verb=info.name, slots=slots,
                                       negated=info.negated, tail=None,
                                       **self.where_verb(info)))
-                    slots, adverbs = [], []
+                    slots = []
                     if info.ending == "final":
                         self.expect("symbol", ".")
                         self.expect("newline")
@@ -416,11 +353,6 @@ class StatementParser(PhraseParser):
 
                 raise SyntaxError_(
                     f"실행문에 쓸 수 없는 어미: {ending_name(info.ending)}", info.line)
-
-            if token.kind == "adverb":
-                adverbs.append(token.value)
-                self.next()
-                continue
 
             if token.kind == "keyword" and token.value == "간격":
                 self.next()
@@ -474,8 +406,9 @@ class StatementParser(PhraseParser):
         self.pos += 3
         return token.value
 
-    def loop(self, slots, adverbs, line=None):
-        start = stop = step = source = variable = None
+    def loop(self, slots, line=None):
+        """'<시작>부터 <끝>까지 (<간격> 간격)의 <이름>마다 반복한다:'"""
+        start = stop = step = variable = None
         for particle, expr in slots:
             if particle == "부터":
                 start = expr
@@ -484,31 +417,12 @@ class StatementParser(PhraseParser):
             elif particle == "간격":
                 step = expr
             elif particle == "마다":
-                source = expr
-                name = self.collection_name(expr)
-                if name is None:
-                    raise SyntaxError_("'마다' 앞이 목록 이름이 아님", line)
-                variable = name[:-1] if name.endswith("들") else name
+                if not isinstance(expr, Name):
+                    raise SyntaxError_("'마다' 앞이 이름이 아님", line)
+                variable = expr.name
         if variable is None:
             raise SyntaxError_("반복문에 '마다'가 없음", line)
-        body = self.block()
-        if start is not None:
-            return LoopStmt(kind="range", variable=variable, start=start, stop=stop,
-                            step=step, body=body, line=line)
-        return LoopStmt(kind="each", variable=variable, source=source, body=body,
-                        line=line)
-
-    @classmethod
-    def collection_name(cls, expr):
-        """The name a 반복문 takes its 원소 from."""
-        if isinstance(expr, Name):
-            return expr.name
-        if isinstance(expr, Property):
-            return expr.field
-        if isinstance(expr, Filter):
-            return cls.collection_name(expr.source) or expr.item + "들"
-        if isinstance(expr, PassiveCall):
-            return cls.collection_name(expr.head)
-        if isinstance(expr, (MapExpr, FoldExpr, SelectExpr)):
-            return cls.collection_name(expr.source)
-        return None
+        if start is None or stop is None:
+            raise SyntaxError_("반복문에 범위가 없음", line)
+        return LoopStmt(kind="range", variable=variable, start=start, stop=stop,
+                        step=step, body=self.block(), line=line)

@@ -14,8 +14,7 @@ LOADED = {}
 
 
 class NativeModule:
-    """파이썬으로 적은 모듈. 파서에게는 .sr 모듈과 같은 얼굴을 보인다.
-    구조체는 내놓을 수 없다."""
+    """파이썬으로 적은 모듈. 파서에게는 .sr 모듈과 같은 얼굴을 보인다."""
 
     def __init__(self, name, exports, values):
         self.name, self.exports, self.values = name, exports, values
@@ -26,7 +25,6 @@ class NativeModule:
             self.signatures.setdefault(export.name, []).append(
                 ordered(export.particles))
         self.nouns = {export.name for export in exports if export.kind == "noun"}
-        self.types = set()
 
 
 def load(path):

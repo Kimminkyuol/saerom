@@ -45,6 +45,19 @@ class Splitting(unittest.TestCase):
         self.assertEqual(kinds("나이라는 오류를 낸다.")[:2],
                          [("name", "나"), ("copula", "이다")])
 
+    def test_a_dict_key_keeps_its_particle_shaped_tail(self):
+        """'{나이: 17}' 의 나이는 나 + 이로 갈라지지 않는다."""
+        self.assertEqual(kinds("{나이: 17}"),
+                         [("symbol", "{"), ("name", "나이"), ("symbol", ":"),
+                          ("number", 17), ("symbol", "}")])
+        self.assertEqual(kinds('{이름: "가", 나이: 17}')[4:7],
+                         [("symbol", ","), ("name", "나이"), ("symbol", ":")])
+
+    def test_a_name_before_a_colon_still_splits_outside_a_dict(self):
+        """'것은:' 은 이름과 조사다."""
+        self.assertEqual(kinds("글을 뒤집다라는 것은:")[-3:],
+                         [("name", "것"), ("particle", "는"), ("symbol", ":")])
+
     def test_copula_is_not_split_twice(self):
         """'성인인' 은 성 + 인 + 인 이 아니다."""
         self.assertEqual(kinds("성인인"), [("name", "성인"), ("copula", "이다")])

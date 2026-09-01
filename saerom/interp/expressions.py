@@ -1,21 +1,20 @@
 """식 하나를 값으로."""
 from ..errors import NameError_, SaeromError, ValueError_, quote, suggest
-from ..nodes import (AND, OR, Call, Filter, FoldExpr, ListExpr, Literal, MapExpr,
-                     Name, PassiveCall, Property, QuantExpr, RecordLit, SelectExpr,
-                     SortSpec, Template)
+from ..nodes import (AND, OR, Call, DictExpr, ListExpr, Literal, Name,
+                     PassiveCall, Property, Template)
 from .builtins import CHANGES
 from .calls import CallMixin
 import copy
 
-from .values import (ORDINALS, Module, Record, SortKey, kind_of, show,
-                     signature_of, to_text, truthy)
+from .values import (ORDINALS, Module, kind_of, show, signature_of, to_text,
+                     truthy)
 
 
 class ExpressionMixin(CallMixin):
     """식 하나를 값으로."""
 
     TYPE_NAMES = {bool: "논리값", int: "정수", float: "실수", str: "문자열",
-                  list: "목록"}
+                  list: "목록", dict: "사전"}
 
     def evaluate(self, node):
         """EVALUATE 에 적힌 갈래대로 식 하나를 값으로 바꾼다."""
@@ -29,16 +28,10 @@ class ExpressionMixin(CallMixin):
         return node.value
 
     def evaluate_name(self, node):
-        """이름 하나를 값으로. 관형절 안에서 임자를 생략하면 원소의 필드로 읽는다."""
         if node.name in self.scope:
             return self.scope[node.name]
         if node.name in self.globals:
             return self.globals[node.name]
-        if self.items:
-            try:
-                return self.get_property(self.items[-1], node.name, node.line)
-            except SaeromError:
-                pass
         names = set(self.scope) | set(self.globals)
         close = suggest(node.name, names)
         raise NameError_(
@@ -47,6 +40,9 @@ class ExpressionMixin(CallMixin):
 
     def evaluate_list(self, node):
         return [self.evaluate(item) for item in node.items]
+
+    def evaluate_dict(self, node):
+        return {key: self.evaluate(value) for key, value in node.items}
 
     def evaluate_template(self, node):
         return "".join(to_text(self.evaluate(part)) for part in node.parts)
@@ -58,15 +54,6 @@ class ExpressionMixin(CallMixin):
         except SaeromError as error:
             raise error.locate(node)
 
-    def evaluate_sort_spec(self, node):
-        return SortKey(self, node.key, node.descending, "것")
-
-    def listed(self, value, adverb, line):
-        """모음 부사가 도는 대상은 목록이어야 한다."""
-        if not isinstance(value, list):
-            raise SaeromError(f"'{adverb}'의 대상이 목록이 아님", line)
-        return value
-
     def valued(self, verb, result, line=None):
         """값 자리에서 부른 동사는 값을 내야 한다."""
         if result is None:
@@ -74,34 +61,11 @@ class ExpressionMixin(CallMixin):
                 f"동사 {quote(verb)} 아무 값도 돌려주지 않음", line)
         return result
 
-    def evaluate_map(self, node):
-        source = self.listed(self.evaluate(node.source), "각각", node.line)
-        item_name = self.item_name(node.source)
-        return [self.with_item(item_name, item,
-                               lambda item=item: self.map_one(node, item))
-                for item in source]
-
-    def map_one(self, node, item):
-        verb = node.clause.verb
-        args = {p: self.evaluate(e) for p, e in node.clause.slots}
-        return self.valued(verb, self.apply(
-            verb, spare(verb, self.fill_item(verb, args, item)), node.line), node.line)
-
-    def evaluate_quantifier(self, node):
-        source = self.listed(self.evaluate(node.source),
-                             "모두" if node.kind == "all" else "하나라도",
-                             node.line)
-        item_name = self.item_name(node.source)
-        results = [self.test_clause(node.clause, item, item_name) for item in source]
-        return all(results) if node.kind == "all" else any(results)
-
     def get_property(self, value, field, line=None):
         if field == "복사본":
             return copy.deepcopy(value)
 
         if field == "자료형":
-            if isinstance(value, Record):
-                return value.type_name
             return self.TYPE_NAMES.get(type(value), "값")
 
         if isinstance(value, Module):
@@ -113,19 +77,16 @@ class ExpressionMixin(CallMixin):
                 f"모듈 '{value.name}'에 '{field}' 없음",
                 hint=f"비슷한 이름: '{close}'" if close else None)
 
-        if isinstance(value, Record):
-            if field in value.fields:
-                return value.fields[field]
+        if isinstance(value, dict):
+            if field in value:
+                return value[field]
             if field in self.nouns:
                 return self.derived(value, field, line)
-            close = suggest(field, value.fields)
+            close = suggest(field, value)
             raise NameError_(
-                f"구조체 '{value.type_name}'에 필드 '{field}' 없음",
+                f"사전에 '{field}' 없음",
                 hint=f"비슷한 이름: '{close}'" if close else
-                     "필드: " + ", ".join(value.fields))
-
-        if isinstance(value, list) and field.endswith("들"):
-            return [self.get_property(item, field[:-1], line) for item in value]
+                     ("열쇠: " + ", ".join(value) if value else None))
 
         if isinstance(value, list):
             if field == "개수":
@@ -179,73 +140,6 @@ class ExpressionMixin(CallMixin):
             raise ValueError_(f"{index}번째 없음. 개수는 {size}")
         return index
 
-    @staticmethod
-    def item_name(source):
-        if isinstance(source, Name) and source.name.endswith("들"):
-            return source.name[:-1]
-        return "것"
-
-    def with_item(self, item_name, item, thunk):
-        outer = self.scope.get(item_name)
-        self.scope[item_name] = item
-        self.items.append(item)
-        try:
-            return thunk()
-        finally:
-            self.items.pop()
-            if outer is None:
-                self.scope.pop(item_name, None)
-            else:
-                self.scope[item_name] = outer
-
-    def fill_item(self, verb, args, item):
-        """관형절에서 빠진 자리가 하나면 원소가 채운다.
-
-        '짝수인 숫자들' fills 가; '평균점수계산한 값이 큰 학생들' fills 의.
-        """
-        given = frozenset(args)
-        key = (verb, given, id(self.functions), len(self.functions))
-        if key not in self.empty_slots:
-            self.empty_slots[key] = self.empty_slot(verb, given)
-        found = self.empty_slots[key]
-        if found is None:
-            return args
-        alone, particle = found
-        if alone:
-            args[particle] = item
-        else:
-            args.setdefault(particle, item)
-        return args
-
-    def empty_slot(self, verb, given):
-        """이 동사에서 아직 비어 있는 조사 자리. 목록을 도는 동안 바뀌지 않는다."""
-        candidates = {(dict(signature).keys() - given).pop()
-                      for name, signature in list(self.functions) + list(self.builtins)
-                      if name == verb and given < dict(signature).keys()
-                      and len(signature) == len(given) + 1}
-        if len(candidates) == 1:
-            return True, candidates.pop()
-        if "가" in candidates or not candidates:
-            return False, "가"
-        return None
-
-    def evaluate_clause(self, clause, item):
-        """관형절을 원소 하나에 대해 값으로. 뒤집기는 test_clause 가 한 번만 한다."""
-        if not isinstance(clause, Call):
-            return self.evaluate(clause)
-
-        if clause.verb == "이다":
-            found = self.predicate_slot(clause.slots)
-            if found is not None:
-                name, rest = found
-                args = {p: self.evaluate(e) for p, e in rest}
-                return self.apply(name, spare(name, self.fill_item(name, args, item)),
-                                  clause.line)
-
-        verb = clause.verb
-        args = {p: self.evaluate(e) for p, e in clause.slots}
-        return self.apply(verb, spare(verb, self.fill_item(verb, args, item)), clause.line)
-
     def predicate_slot(self, slots):
         """이다의 슬롯 가운데 술어 이름을 가리키는 것. 이중주격이라 조사가
         없기도, '가'이기도 하다: '우등생인 학생들', '음수가 아닌 수들'."""
@@ -266,67 +160,6 @@ class ExpressionMixin(CallMixin):
             self.verb_names = {verb for verb, _ in self.functions} | \
                               {verb for verb, _ in self.builtins}
         return name in self.verb_names
-
-    def test_clause(self, clause, item, item_name):
-        def run():
-            result = self.evaluate_clause(clause, item)
-            return not truthy(result) if getattr(clause, "negated", False) else truthy(result)
-        return self.with_item(item_name, item, run)
-
-    def run_filter(self, node):
-        source = self.evaluate(node.source)
-        if not isinstance(source, list):
-            raise SaeromError("걸러낼 대상이 목록이 아님", node.line)
-        return [item for item in source
-                if self.test_clause(node.clause, item, node.item)]
-
-    def fold(self, node):
-        source = self.listed(self.evaluate(node.source), "모두", node.line)
-        verb = node.clause.verb
-        extra = {p: self.evaluate(e) for p, e in node.clause.slots}
-        whole = self.lookup(verb, list(extra) + ["를"])
-        if whole is not None:
-            return self.valued(verb, self.apply(
-                verb, {**extra, "를": source}, node.line), node.line)
-        if not source:
-            raise SaeromError("모을 원소가 없음", node.line)
-        signature = self.two_slot_signature(verb)
-        if signature is None:
-            raise SaeromError(f"'{verb}'로 모을 수 없음", node.line)
-        accumulator_slot = (signature - {"를"}).pop()
-        total = copy.deepcopy(source[0])
-        for item in source[1:]:
-            total = self.valued(verb, self.apply(
-                verb, {accumulator_slot: total, "를": item}, node.line), node.line)
-        return total
-
-    def two_slot_signature(self, verb):
-        for name, signature in list(self.functions) + list(self.builtins):
-            names = dict(signature).keys()
-            if name == verb and len(names) == 2 and "를" in names:
-                return set(names)
-        return None
-
-    def select(self, node):
-        source = self.listed(self.evaluate(node.source), "가장", node.line)
-        if not source:
-            raise SaeromError("고를 원소가 없음", node.line)
-        item_name = self.item_name(node.source)
-        best = source[0]
-        mark = self.select_key(node, best, item_name)
-        for item in source[1:]:
-            found = self.select_key(node, item, item_name)
-            if truthy(self.apply(node.clause.verb, {"가": found, "보다": mark},
-                                 node.line)):
-                best, mark = item, found
-        return best
-
-    def select_key(self, node, item, item_name):
-        """'평균이 가장 큰 값' 의 기준. 기준을 적지 않으면 원소 자체다."""
-        if node.key is None:
-            return item
-        return self.with_item(item_name, item,
-                              lambda: self.evaluate_clause(node.key, item))
 
     def passive(self, node):
         """머리 명사가 비어 있는 조사 자리를 채운다. 값은 그 호출이 낸 것이다."""
@@ -400,33 +233,16 @@ class ExpressionMixin(CallMixin):
         name = node.verb + ("·나머지" if node.tail == "나머지" else "")
         return self.answered(node, self.apply(name, pairs, node.line))
 
-    def evaluate_record(self, node):
-        return self.build_record(node)
-
     EVALUATE = {
         Literal: evaluate_literal,
         Name: evaluate_name,
         ListExpr: evaluate_list,
         Template: evaluate_template,
         Property: evaluate_property,
-        SortSpec: evaluate_sort_spec,
-        RecordLit: evaluate_record,
+        DictExpr: evaluate_dict,
         Call: call,
         PassiveCall: passive,
-        Filter: run_filter,
-        MapExpr: evaluate_map,
-        FoldExpr: fold,
-        SelectExpr: select,
-        QuantExpr: evaluate_quantifier,
     }
-
-
-def spare(verb, args):
-    """값을 내는 자리에서 부르면 바꿀 자리를 복사해서 넘긴다."""
-    slot = CHANGES.get(verb)
-    if slot is not None and isinstance(args.get(slot), list):
-        args[slot] = list(args[slot])
-    return args
 
 
 def spare_pairs(verb, pairs):

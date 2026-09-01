@@ -107,11 +107,11 @@ class PythonModule(unittest.TestCase):
                               "def share(left, right):\n    return left / right\n")
         self.assertIn("매개변수", self.fails("틀림을 가져온다.").message)
 
-    def test_predicate_filters(self):
+    def test_predicate_in_a_question(self):
         self.assertEqual(
             self.run_source("도구에서 윤년이다를 가져온다.\n"
-                            "해들은 [2023, 2024, 2000, 2100]이다.\n"
-                            '"{윤년인 해들}"을 출력한다.'), "[2024, 2000]")
+                            '"{2024가 윤년인지} {2100이 윤년인지}"를 출력한다.'),
+            "참 거짓")
 
     def test_fail_is_caught(self):
         self.assertEqual(

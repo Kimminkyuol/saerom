@@ -45,6 +45,16 @@ class Particles(unittest.TestCase):
             '목록은 [1]이다.\n"{목록을 정렬한 값}"을 출력한다.\n')
 
 
+class Dicts(unittest.TestCase):
+    def test_spacing(self):
+        self.assertEqual(
+            format_source('철수는 { 이름 : "가" , 나이:17 }이다.\n'),
+            '철수는 {이름: "가", 나이: 17}이다.\n')
+
+    def test_empty(self):
+        self.assertEqual(format_source("빈것은 { }이다.\n"), "빈것은 {}이다.\n")
+
+
 class Layout(unittest.TestCase):
     CASES = [
         ("만약 참이면:\n  참\n", "만약 참이면:\n    참\n"),
@@ -99,9 +109,9 @@ class Properties(unittest.TestCase):
 
     def test_behaviour_is_preserved(self):
         messy = ('수들은 [ 3,1 , 2 ]이다.\n'
-                 '정렬된 수들를 출력한다.\n'
-                 '만약 수들의 개수이 3이면:\n'
-                 '  "셋"를 출력한다.\n')
+                 '수들에 4을 더한다.\n'
+                 '만약 수들의 개수이 4이면:\n'
+                 '  "넷"를 출력한다.\n')
         self.assertEqual(run(messy), run(format_source(messy)))
 
 

@@ -14,10 +14,9 @@ class Return(Exception):
 
 class Module:
     """A 가져온 모듈. Its members are reached with 의, like any 속성."""
-    def __init__(self, name, values, functions, types, nouns):
+    def __init__(self, name, values, functions, nouns):
         self.name, self.values = name, values
-        self.functions, self.types = functions, types
-        self.nouns = nouns
+        self.functions, self.nouns = functions, nouns
 
     def __repr__(self):
         return f"모듈 {self.name}"
@@ -55,36 +54,6 @@ class NativeFunction(Function):
                           in enumerate(particles)], None, module)
         self.call = call
 
-class Record:
-    def __init__(self, type_name, fields):
-        self.type_name = type_name
-        self.fields = dict(fields)
-
-    def __eq__(self, other):
-        return (isinstance(other, Record) and self.type_name == other.type_name
-                and self.fields == other.fields)
-
-    __hash__ = None
-
-    def __repr__(self):
-        inner = ", ".join(f"{k}={to_text(v)}" for k, v in self.fields.items())
-        return f"{self.type_name}({inner})"
-
-class SortKey:
-    """A 줄 세우는 기준 handed to 정렬하다 as its '~로' argument."""
-    def __init__(self, interp, key, descending, item_name):
-        self.interp, self.key = interp, key
-        self.descending, self.item_name = descending, item_name
-
-    def of(self, item):
-        if self.key is None:
-            return item
-        return self.interp.with_item(self.item_name, item,
-                                     lambda: self.interp.evaluate_clause(self.key, item))
-
-    def __repr__(self):
-        return "정렬 기준"
-
 class Handle:
     """자원문이 열어 둔 파일. 읽기와 쓰기를 모두 한다."""
     def __init__(self, stream):
@@ -103,8 +72,8 @@ def to_text(value):
         return f"{value:.12g}"
     if isinstance(value, list):
         return "[" + ", ".join(to_text(v) for v in value) + "]"
-    if isinstance(value, Record):
-        return repr(value)
+    if isinstance(value, dict):
+        return "{" + ", ".join(f"{k}: {to_text(v)}" for k, v in value.items()) + "}"
     return str(value)
 
 def truthy(value):
@@ -114,7 +83,7 @@ def truthy(value):
         return False
     if isinstance(value, (int, float)):
         return value != 0
-    if isinstance(value, (str, list)):
+    if isinstance(value, (str, list, dict)):
         return len(value) > 0
     return True
 
@@ -124,16 +93,17 @@ def show(value):
 
 def is_value(value):
     """새롬이 다룰 수 있는 값인가. 파이썬 모듈의 경계에서 본다."""
-    if isinstance(value, (bool, int, float, str, Record)) or value is None:
+    if isinstance(value, (bool, int, float, str)) or value is None:
         return True
     if isinstance(value, list):
         return all(is_value(item) for item in value)
+    if isinstance(value, dict):
+        return all(isinstance(key, str) and is_value(item)
+                   for key, item in value.items())
     return False
 
 
 def kind_of(value):
-    if isinstance(value, SortKey):
-        return "정렬 기준"
     if isinstance(value, bool):
         return "논리값"
     if isinstance(value, (int, float)):
@@ -142,8 +112,8 @@ def kind_of(value):
         return "문자열"
     if isinstance(value, list):
         return "목록"
-    if isinstance(value, Record):
-        return f"구조체 '{value.type_name}'"
+    if isinstance(value, dict):
+        return "사전"
     if isinstance(value, Module):
         return f"모듈 '{value.name}'"
     if isinstance(value, Handle):

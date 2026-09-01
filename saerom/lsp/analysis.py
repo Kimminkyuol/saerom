@@ -4,14 +4,14 @@ import os
 from ..errors import SaeromError
 from ..lexer import prescan, tokenize
 from ..nodes import (Call, Declare, DefineStmt, Name, Node, NounDef,
-                     PassiveCall, RecordType)
+                     PassiveCall)
 from ..parser import make_parser
 from ..words import BUILTIN_SIGNATURES
 from .completion import CompletionMixin
 from .tokens import TOKEN_MODIFIERS, TOKEN_TYPES, TokenMixin  # noqa: F401
 
 # LSP SymbolKind
-FUNCTION, METHOD, VARIABLE, STRUCT, FIELD = 12, 6, 13, 23, 8
+FUNCTION, METHOD, VARIABLE, FIELD = 12, 6, 13, 8
 
 SEVERITY_ERROR = 1
 
@@ -39,7 +39,6 @@ class Analysis(TokenMixin, CompletionMixin):
         self.stems = frozenset()
         self.verbs = dict(BUILTIN_SIGNATURES)
         self.nouns = set()
-        self.types = set()
         self.modules = set()
         self._analyse()
 
@@ -57,7 +56,6 @@ class Analysis(TokenMixin, CompletionMixin):
             self.statements = parser.program()
             self.verbs = dict(parser.signatures)
             self.nouns = set(parser.nouns)
-            self.types = set(parser.types)
             self.modules = set(parser.module_names)
         except SaeromError as error:
             self.error = error
@@ -123,9 +121,6 @@ class Analysis(TokenMixin, CompletionMixin):
             elif isinstance(statement, NounDef):
                 out.append(self._symbol(statement.name, FIELD, statement.line,
                                         detail=f"~의 {statement.name}"))
-            elif isinstance(statement, RecordType):
-                out.append(self._symbol(statement.name, STRUCT, statement.line,
-                                        detail=", ".join(n for n, _ in statement.fields)))
             elif isinstance(statement, Declare) and isinstance(statement.target, Name):
                 out.append(self._symbol(statement.target.name, VARIABLE, statement.line))
         return out

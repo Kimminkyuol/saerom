@@ -22,8 +22,8 @@ ALLOMORPHS = {
 
 CORRECTABLE = ("name", "keyword")
 
-NO_SPACE_BEFORE = {",", ".", ":", "]"}
-NO_SPACE_AFTER = {"["}
+NO_SPACE_BEFORE = {",", ".", ":", "]", "}"}
+NO_SPACE_AFTER = {"[", "{"}
 
 INDENT = "    "
 
@@ -176,7 +176,7 @@ def fix_spacing(text, vocabulary):
 
 def gap_between(before, after, glued):
     """두 토큰 사이의 빈 칸. glued 는 한 어절에서 갈라진 토큰끼리라는 뜻이다."""
-    if before == ",":
+    if before in (",", ":"):
         return " "
     if glued:
         return ""

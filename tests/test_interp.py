@@ -71,16 +71,16 @@ class Control(unittest.TestCase):
             run("만약 1이 2보다 작거나 1과 같으면:\n    \"참\"을 출력한다."), "참")
 
     def test_range_loop(self):
-        self.assertEqual(run("1부터 5까지의 수들마다 반복한다:\n    수를 출력한다."), "12345")
+        self.assertEqual(run("1부터 5까지의 수마다 반복한다:\n    수를 출력한다."), "12345")
 
     def test_range_counts_down(self):
-        self.assertEqual(run("3부터 1까지의 수들마다 반복한다:\n    수를 출력한다."), "321")
+        self.assertEqual(run("3부터 1까지의 수마다 반복한다:\n    수를 출력한다."), "321")
 
     def test_range_step(self):
         self.assertEqual(
-            run("10부터 0까지 5 간격의 수들마다 반복한다:\n    수를 출력한다."), "1050")
+            run("10부터 0까지 5 간격의 수마다 반복한다:\n    수를 출력한다."), "1050")
         self.assertEqual(
-            run("0부터 10까지 5 간격의 수들마다 반복한다:\n    수를 출력한다."), "0510")
+            run("0부터 10까지 5 간격의 수마다 반복한다:\n    수를 출력한다."), "0510")
 
     def test_while(self):
         self.assertEqual(
@@ -89,11 +89,11 @@ class Control(unittest.TestCase):
 
     def test_break_and_continue(self):
         self.assertEqual(
-            run("1부터 9까지의 수들마다 반복한다:\n"
+            run("1부터 9까지의 수마다 반복한다:\n"
                 "    만약 수가 3보다 크면:\n        빠져나간다.\n"
                 "    수를 출력한다."), "123")
         self.assertEqual(
-            run("1부터 5까지의 수들마다 반복한다:\n"
+            run("1부터 5까지의 수마다 반복한다:\n"
                 "    만약 수를 2로 나눈 나머지가 0이면:\n        넘어간다.\n"
                 "    수를 출력한다."), "135")
 
@@ -121,12 +121,10 @@ class Definitions(unittest.TestCase):
                 "    수에 앞값을 곱한 값을 돌려준다.\n"
                 "5를 계승계산한 값을 출력한다."), "120")
 
-    def test_predicate_in_three_places(self):
+    def test_predicate_in_two_places(self):
         head = "수가 홀수이다라는 것은:\n    수를 2로 나눈 나머지가 1인지를 돌려준다.\n"
         self.assertEqual(run(head + "만약 7이 홀수이면:\n    \"참\"을 출력한다."), "참")
         self.assertEqual(run(head + "7이 홀수인지를 출력한다."), "참")
-        self.assertEqual(run(head + "수들은 [1, 2, 3]이다.\n홀수인 수들을 출력한다."),
-                         "[1, 3]")
 
     def test_signature_is_the_particle_set(self):
         source = ("값들을 정리하다라는 것은:\n    \"하나\"를 출력한다.\n"
@@ -152,11 +150,11 @@ class Definitions(unittest.TestCase):
                   "수를 두배하다라는 것은:\n    수에 수를 더한 값을 돌려준다.\n"
                   "수가 저축되다라는 것은:\n    수에 1을 더한 값을 돌려준다.\n"
                   "수가 짝수이다라는 것은:\n    수를 2로 나눈 나머지가 0인지를 돌려준다.\n"
-                  "수들의 평균이라는 것은:\n    수들을 모두 더한 값을 돌려준다.\n")
+                  "수들의 크기라는 것은:\n    수들의 개수를 돌려준다.\n")
         self.assertEqual(
             run(source + '"{"가"를 뒤집은 값} {3으로 1을 만든 값} {2를 두배한 값} '
-                '{1이 저축된 값} {4가 짝수인지} {[1, 2]의 평균}"을 출력한다.'),
-            "가 3 4 2 참 3")
+                '{1이 저축된 값} {4가 짝수인지} {[1, 2]의 크기}"을 출력한다.'),
+            "가 3 4 2 참 2")
 
     OLD_HEADS = [
         "글을 뒤집는 것은:\n    글을 돌려준다.\n",
@@ -178,7 +176,7 @@ class Definitions(unittest.TestCase):
         """'학생들에 줄들을 해석한 값을 더한다' 에서 해석하다는 줄들만 가져간다."""
         self.assertEqual(
             run("줄들을 해석하다라는 것은:\n    줄들에 100을 더한 값을 돌려준다.\n"
-                "목록은 빈목록이다.\n"
+                "목록은 []이다.\n"
                 "목록에 1을 해석한 값을 더한다.\n"
                 "목록을 출력한다."), "[101]")
 
@@ -187,8 +185,11 @@ class Stems(unittest.TestCase):
     """'명사 + 하다' 가 아닌 고유어 어간으로 만든 동사."""
 
     REVERSE = ("글을 뒤집다라는 것은:\n"
-               "    글자들은 글을 \"\"로 자른 값들이다.\n"
-               "    글자들의 역순을 \"\"로 이은 값을 돌려준다.\n")
+               "    모은것은 \"\"이다.\n"
+               "    1부터 글의 글자수까지의 자리마다 반복한다:\n"
+               "        뒷자리는 글의 글자수에서 자리를 뺀 값에 1을 더한 값이다.\n"
+               "        모은것은 모은것과 글의 뒷자리번째를 이은 값이다.\n"
+               "    모은것을 돌려준다.\n")
     COUNT = "수들을 세다라는 것은:\n    수들의 개수를 돌려준다.\n"
 
     def test_endings(self):
@@ -210,8 +211,7 @@ class Stems(unittest.TestCase):
 
     def test_stem_with_a_coda(self):
         self.assertEqual(
-            run("목록에서 역순을 가져온다.\n" + self.REVERSE +
-                '"가나다"를 뒤집은 값을 출력한다.'), "다나가")
+            run(self.REVERSE + '"가나다"를 뒤집은 값을 출력한다.'), "다나가")
 
     def test_declared_name_wins(self):
         """'세기' 는 '세다'의 명사형이기도 하지만 선언된 이름이 앞선다."""
@@ -223,11 +223,9 @@ class Stems(unittest.TestCase):
         """'크기' 는 '크다'의 명사형이기도 하지만 선언된 이름이 앞선다."""
         self.assertEqual(run("크기는 3이다.\n\"{크기}\"를 출력한다."), "3")
         self.assertEqual(
-            run("상자는 이런 것이다:\n    크기는 정수이다.\n"
-                "갑은 크기가 3인 상자이다.\n\"{갑의 크기}\"를 출력한다."), "3")
+            run("갑은 {크기: 3}이다.\n\"{갑의 크기}\"를 출력한다."), "3")
         self.assertEqual(
-            run("상자는 이런 것이다:\n    나누기는 정수이다.\n"
-                "갑은 나누기가 3인 상자이다.\n"
+            run("갑은 {나누기: 3}이다.\n"
                 "상자의 두배라는 것은:\n    상자의 나누기에 2를 곱한 값을 돌려준다.\n"
                 "\"{갑의 두배}\"를 출력한다."), "6")
 
@@ -264,7 +262,11 @@ class StemModules(unittest.TestCase):
     """어간 동사를 가져오려면 그 파일을 가르기 전에 저쪽을 훑어야 한다."""
 
     TOOL = ("글을 뒤집다라는 것은:\n"
-            "    글을 \"\"로 자른 값들의 역순을 \"\"로 이은 값을 돌려준다.\n")
+            "    모은것은 \"\"이다.\n"
+            "    1부터 글의 글자수까지의 자리마다 반복한다:\n"
+            "        뒷자리는 글의 글자수에서 자리를 뺀 값에 1을 더한 값이다.\n"
+            "        모은것은 모은것과 글의 뒷자리번째를 이은 값이다.\n"
+            "    모은것을 돌려준다.\n")
 
     def setUp(self):
         self.folder = tempfile.TemporaryDirectory()
@@ -282,13 +284,13 @@ class StemModules(unittest.TestCase):
         return run(source, path=self.write("주.sr", source))
 
     def test_imported_stem_verb(self):
-        self.write("도구.sr", "목록에서 역순을 가져온다.\n\n" + self.TOOL)
+        self.write("도구.sr", self.TOOL)
         self.assertEqual(
             self.run_source('도구에서 뒤집다를 가져온다.\n'
                             '"가나다"를 뒤집은 값을 출력한다.'), "다나가")
 
     def test_imported_stem_verb_through_the_namespace(self):
-        self.write("도구.sr", "목록에서 역순을 가져온다.\n\n" + self.TOOL)
+        self.write("도구.sr", self.TOOL)
         self.assertEqual(
             self.run_source('도구를 가져온다.\n'
                             '"가나다"를 도구의 뒤집은 값을 출력한다.'), "다나가")
@@ -307,24 +309,10 @@ class StemModules(unittest.TestCase):
 
 
 class Lists(unittest.TestCase):
-    SETUP = "수학에서 짝수이다를 가져온다.\n수들은 [3, 8, 15, 4]이다.\n"
+    SETUP = "수들은 [3, 8, 15, 4]이다.\n"
 
     def check(self, expression, wanted):
         self.assertEqual(run(self.SETUP + f"{expression}을 출력한다."), wanted)
-
-    def test_filter(self):
-        self.check("짝수인 수들", "[8, 4]")
-        self.check("10보다 큰 수들", "[15]")
-
-    def test_map(self):
-        self.check("수들을 각각 2로 나눈 값들", "[1.5, 4, 7.5, 2]")
-
-    def test_reduce(self):
-        self.check("수들을 모두 더한 값", "30")
-
-    def test_select(self):
-        self.check("수들 중 가장 큰 값", "15")
-        self.check("수들 중 가장 작은 값", "3")
 
     def test_fields(self):
         self.check("수들의 개수", "4")
@@ -339,36 +327,16 @@ class Lists(unittest.TestCase):
             with self.subTest(field=field):
                 self.assertEqual(run(source + f"수들의 {field}를 출력한다."), wanted)
 
-    def test_empty_reduce_is_an_error(self):
-        error = failure("빈목록을 모두 더한 값을 출력한다.")
-        self.assertIn("모을 원소가 없음", error.message)
-
-    def test_reduce_leaves_the_source_alone(self):
-        self.assertEqual(
-            run("겹친것은 [[1], [2]]이다.\n겹친것을 모두 더한 값을 출력한다.\n"
-                "겹친것을 출력한다."), "[1, 2][[1], [2]]")
-
     def test_field_out_of_range(self):
-        for expression in ("빈목록의 첫째", "빈목록의 마지막", "수들의 5번째",
+        for expression in ("[]의 첫째", "[]의 마지막", "수들의 5번째",
                            '""의 첫째', '""의 마지막'):
             with self.subTest(expression=expression):
                 error = failure(self.SETUP + f"{expression}을 출력한다.")
                 self.assertEqual(error.kind, "값 오류")
 
-    def test_quantifiers(self):
-        self.check("수들이 모두 짝수인지", "거짓")
-        self.check("수들 중 하나라도 10보다 큰지", "참")
-
-    def test_filter_over_an_expression(self):
-        self.check("수들을 각각 2로 나눈 값들 중 5보다 큰 것들", "[7.5]")
-
     def test_length_is_not_a_field(self):
         self.assertEqual(failure("[1]의 길이를 출력한다.").kind, "이름 오류")
         self.assertEqual(failure('"가"의 개수를 출력한다.').kind, "이름 오류")
-
-    def test_string_fields(self):
-        self.assertEqual(run('이름들은 ["가나", "다"]이다.\n이름들의 글자수들을 출력한다.'),
-                         "[2, 1]")
 
 
 class LoopControl(unittest.TestCase):
@@ -376,7 +344,7 @@ class LoopControl(unittest.TestCase):
 
     def test_break_and_continue(self):
         self.assertEqual(
-            run("1부터 5까지의 수들마다 반복한다:\n"
+            run("1부터 5까지의 수마다 반복한다:\n"
                 "    만약 수가 2이면:\n        넘어간다.\n"
                 "    만약 수가 4이면:\n        빠져나간다.\n"
                 '    "{수}"를 출력한다.'), "13")
@@ -389,16 +357,16 @@ class LoopControl(unittest.TestCase):
 
     def test_break_does_not_cross_a_verb(self):
         error = failure("수를 재주하다라는 것은:\n    빠져나간다.\n"
-                        "수들은 [1]이다.\n수들마다 반복한다:\n    수를 재주한다.")
+                        "1부터 1까지의 수마다 반복한다:\n    수를 재주한다.")
         self.assertIn("반복문", error.message)
 
     def test_break_inside_a_verb_with_its_own_loop(self):
         self.assertEqual(
             run("수를 재주하다라는 것은:\n"
-                "    1부터 3까지의 수들마다 반복한다:\n"
+                "    1부터 3까지의 수마다 반복한다:\n"
                 "        빠져나간다.\n"
                 '    "안"을 출력한다.\n'
-                "1부터 2까지의 수들마다 반복한다:\n    수를 재주한다."), "안안")
+                "1부터 2까지의 수마다 반복한다:\n    수를 재주한다."), "안안")
 
 
 class Counter(unittest.TestCase):
@@ -407,7 +375,7 @@ class Counter(unittest.TestCase):
     def test_counting_over_a_list(self):
         self.assertEqual(
             run('이름들은 ["가", "나"]이다.\n'
-                "1부터 이름들의 개수까지의 자리들마다 반복한다:\n"
+                "1부터 이름들의 개수까지의 자리마다 반복한다:\n"
                 '    "{자리}:{이름들의 자리번째} "을 출력한다.'), "1:가 2:나 ")
 
     def test_counting_in_a_while_loop(self):
@@ -418,7 +386,7 @@ class Counter(unittest.TestCase):
                 "    남은것은 남은것에서 1을 뺀 값이다."), "12")
 
     def test_the_old_counter_is_gone(self):
-        error = failure("수들은 [1]이다.\n수들마다 반복한다:\n    번째를 출력한다.")
+        error = failure("1부터 1까지의 수마다 반복한다:\n    번째를 출력한다.")
         self.assertEqual(error.kind, "이름 오류")
 
 
@@ -448,8 +416,6 @@ class Predicates(unittest.TestCase):
                 "    왼쪽이 오른쪽과 같은지를 돌려준다.\n")
         self.assertEqual(run(head + "3이 3과 짝인지를 출력한다."), "참")
         self.assertEqual(run(head + "3이 4와 짝인지를 출력한다."), "거짓")
-        self.assertEqual(run(head + "수들은 [1, 2, 3]이다.\n"
-                                    "2와 짝인 수들을 출력한다."), "[2]")
 
     def test_conjunction_still_makes_a_list(self):
         self.assertEqual(run("수들은 1과 2와 3이다.\n수들을 출력한다."), "[1, 2, 3]")
@@ -496,14 +462,6 @@ class NoValue(unittest.TestCase):
     def test_plain_call(self):
         self.check(self.QUIET + "값은 1을 조용히한 값이다.\n참")
 
-    def test_map(self):
-        self.check(self.QUIET + "수들은 [1, 2]이다.\n"
-                   "수들을 각각 조용히한 값들을 출력한다.")
-
-    def test_fold(self):
-        self.check("목록에 수를 조용히하다라는 것은:\n    참\n수들은 [1, 2]이다.\n"
-                   "수들을 모두 조용히한 값을 출력한다.")
-
     def test_printing_gives_no_value(self):
         self.check('값은 "가"를 출력한 값이다.\n참')
 
@@ -512,9 +470,6 @@ class NoValue(unittest.TestCase):
         self.assertEqual(
             failure(self.QUIET + "1을 조용히해 통으로 둔다:\n    통을 출력한다.").kind,
             "이름 오류")
-
-    def test_sort_spec_shows_a_korean_name(self):
-        self.assertEqual(run('"{큰 순}"을 출력한다.'), "정렬 기준")
 
 
 class Comparatives(unittest.TestCase):
@@ -531,22 +486,12 @@ class Comparatives(unittest.TestCase):
         self.assertEqual(self.branch("수가 9 초과이면"), "참")
         self.assertEqual(self.branch("수가 11 미만이면"), "참")
 
-    def test_filters(self):
-        source = "수들은 [1, 10, 30]이다.\n"
-        self.assertEqual(run(source + '"{10 이상인 수들}"을 출력한다.'), "[10, 30]")
-        self.assertEqual(run(source + '"{10 이하인 수들}"을 출력한다.'), "[1, 10]")
-        self.assertEqual(run(source + '"{10 초과인 수들}"을 출력한다.'), "[30]")
-        self.assertEqual(run(source + '"{10 미만인 수들}"을 출력한다.'), "[1]")
-
     def test_question(self):
         self.assertEqual(run('"{3이 3 이상인지}"를 출력한다.'), "참")
         self.assertEqual(run('"{3이 3 초과인지}"를 출력한다.'), "거짓")
 
     def test_negation(self):
         self.assertEqual(self.branch("수가 20 이상이 아니면"), "참")
-        self.assertEqual(
-            run("수들은 [1, 10, 30]이다.\n"
-                '"{10 이상이 아닌 수들}"을 출력한다.'), "[1]")
 
     def test_joined_conditions_share_the_subject(self):
         self.assertEqual(self.branch("수가 5 이상이고 20 이하이면"), "참")
@@ -606,151 +551,97 @@ class ChangesAndValues(unittest.TestCase):
             run("원본은 [1, 2]이다.\n새것은 원본에 3을 더한 값이다.\n"
                 '"{새것} {원본}"을 출력한다.'), "[1, 2, 3] [1, 2]")
 
-    def test_sort_as_a_statement_changes_the_list(self):
+
+class Dicts(unittest.TestCase):
+    """사전. 열쇠는 이름 하나이고, 읽기와 쓰기는 'X의 Y' 로 한다."""
+
+    SETUP = '철수는 {이름: "김철수", 나이: 17}이다.\n'
+
+    def test_literal_and_read(self):
+        self.assertEqual(run(self.SETUP + "철수의 이름을 출력한다."), "김철수")
+
+    def test_empty_literal(self):
+        self.assertEqual(run("빈것은 {}이다.\n빈것을 출력한다."), "{}")
+
+    def test_shown_like_the_literal(self):
+        self.assertEqual(run(self.SETUP + "철수를 출력한다."),
+                         "{이름: 김철수, 나이: 17}")
+
+    def test_write_an_existing_key(self):
+        self.assertEqual(run(self.SETUP + "철수의 나이는 18이다.\n철수의 나이를 출력한다."),
+                         "18")
+
+    def test_write_makes_a_new_key(self):
         self.assertEqual(
-            run("수들은 [3, 1]이다.\n수들을 정렬한다.\n수들을 출력한다."), "[1, 3]")
+            run("빈것은 {}이다.\n빈것의 나이는 3이다.\n빈것을 출력한다."), "{나이: 3}")
 
-    def test_sort_as_a_value_spares_the_list(self):
+    def test_a_value_may_be_any_expression(self):
         self.assertEqual(
-            run("원본은 [3, 1]이다.\n"
-                '"{원본을 정렬한 값} {원본}"을 출력한다.'), "[1, 3] [3, 1]")
+            run("수는 2이다.\n갑은 {값: 수에 3을 더한 값, 목록: [1, 2]}이다.\n"
+                '"{갑의 값} {갑의 목록의 개수}"를 출력한다.'), "5 2")
 
-    def test_map_spares_the_items(self):
-        self.assertEqual(
-            run("겹친것은 [[3, 1]]이다.\n"
-                '"{겹친것을 각각 정렬한 값들} {겹친것}"을 출력한다.'),
-            "[[1, 3]] [[3, 1]]")
-
-
-class RecordFields(unittest.TestCase):
-    HEAD = "학생은 이런 것이다:\n    이름은 문자열이다.\n    나이는 정수이다.\n"
-
-    def test_unknown_field(self):
-        error = failure(self.HEAD + '철수는 이름이 "가"이고 나이가 1이고 점수가 9인 학생이다.\n참')
+    def test_missing_key_is_a_name_error(self):
+        error = failure(self.SETUP + "철수의 점수를 출력한다.")
         self.assertEqual(error.kind, "이름 오류")
         self.assertIn("점수", error.message)
+        self.assertIn("이름", error.hint)
 
-    def test_missing_field(self):
-        error = failure(self.HEAD + '철수는 이름이 "가"인 학생이다.\n참')
-        self.assertIn("나이", error.message)
-
-    def test_unknown_field_in_block_form(self):
-        error = failure(self.HEAD + '철수는 이런 학생이다:\n    이름은 "가"이다.\n'
-                        "    점수는 1이다.\n참")
-        self.assertIn("점수", error.message)
-
-    def test_struct_name_may_not_be_a_field(self):
-        error = failure(self.HEAD + '철수는 이름이 "가"이고 나이가 1인 학생이다.\n'
-                        "철수의 이름은 이런 것이다:\n    쪽은 문자열이다.\n참")
-        self.assertEqual(error.kind, "구문 오류")
-
-    def test_unknown_struct(self):
-        self.assertEqual(failure('철수는 이름이 "가"인 사람이다.\n참').kind, "이름 오류")
-
-    def test_matching_types_pass(self):
-        self.assertEqual(
-            run(self.HEAD + '철수는 이름이 "가"이고 나이가 1인 학생이다.\n'
-                "철수의 나이를 출력한다."), "1")
-
-    def test_wrong_type_when_made(self):
-        error = failure(self.HEAD + '철수는 이름이 "가"이고 나이가 "열"인 학생이다.\n참')
-        self.assertEqual(error.kind, "값 오류")
-        self.assertIn("정수", error.message)
-
-    def test_wrong_type_when_changed(self):
-        error = failure(self.HEAD + '철수는 이름이 "가"이고 나이가 1인 학생이다.\n'
-                        '철수의 나이는 "둘"이다.\n참')
-        self.assertEqual(error.kind, "값 오류")
-        self.assertIn("정수", error.message)
-
-    def test_a_boolean_is_not_a_whole_number(self):
-        self.assertEqual(
-            failure(self.HEAD + '철수는 이름이 "가"이고 나이가 참인 학생이다.\n참').kind,
-            "값 오류")
-
-    def test_a_whole_number_fits_a_real_field(self):
-        self.assertEqual(
-            run("점은 이런 것이다:\n    높이는 실수이다.\n"
-                "하나는 높이가 3인 점이다.\n하나의 높이를 출력한다."), "3")
-
-    def test_list_field_checks_each_item(self):
-        head = "반은 이런 것이다:\n    점수들은 정수들이다.\n"
-        self.assertEqual(run(head + "하나는 점수들이 [1, 2]인 반이다.\n"
-                                    "하나의 점수들의 개수를 출력한다."), "2")
-        self.assertEqual(failure(head + '하나는 점수들이 [1, "가"]인 반이다.\n참').kind,
-                         "값 오류")
-
-    def test_a_field_may_be_a_struct(self):
-        head = ("주소는 이런 것이다:\n    도시는 문자열이다.\n"
-                "학생은 이런 것이다:\n    사는곳은 주소이다.\n"
-                '집은 도시가 "서울"인 주소이다.\n')
-        self.assertEqual(run(head + "철수는 사는곳이 집인 학생이다.\n"
-                                    "철수의 사는곳의 도시를 출력한다."), "서울")
-        self.assertEqual(failure(head + '철수는 사는곳이 "서울"인 학생이다.\n참').kind,
-                         "값 오류")
-
-    def test_unknown_field_type(self):
-        error = failure("학생은 이런 것이다:\n    나이는 정슈이다.\n참")
-        self.assertEqual(error.kind, "이름 오류")
-        self.assertIn("정슈", error.message)
-
-    def test_a_field_may_be_called_값(self):
-        head = ("상자는 이런 것이다:\n    값은 정수이다.\n"
-                "갑은 값이 3인 상자이다.\n")
+    def test_a_key_may_be_called_값(self):
+        head = "갑은 {값: 3}이다.\n"
         self.assertEqual(run(head + '"{갑의 값}"을 출력한다.'), "3")
         self.assertEqual(run(head + '"{갑의 값에 2를 더한 값}"을 출력한다.'), "5")
         self.assertEqual(
             run(head + "갑의 값은 갑의 값에 1을 더한 값이다.\n"
                 '"{갑의 값}"을 출력한다.'), "4")
+
+    def test_nested(self):
         self.assertEqual(
-            run(head + "상자들은 [갑]이다.\n" + '"{상자들의 값들}"을 출력한다.'),
-            "[3]")
+            run('집은 {주소: {도시: "서울"}}이다.\n집의 주소의 도시를 출력한다.'), "서울")
 
-    def test_a_nested_field_target(self):
-        """'X들의 첫째의 <필드>는 ...이다.' 도 자리를 알아야 오류가 제자리를 가리킨다."""
-        head = ("상자는 이런 것이다:\n    무게는 정수이다.\n"
-                "갑은 무게가 1인 상자이다.\n상자들은 [갑]이다.\n")
+    def test_equal_by_value(self):
         self.assertEqual(
-            run(head + "상자들의 첫째의 무게는 9이다.\n"
-                '"{갑의 무게}"를 출력한다.'), "9")
-        error = failure(head + "없는것의 첫째의 무게는 9이다.\n참")
-        self.assertEqual(error.kind, "이름 오류")
-        self.assertEqual(error.line, 5)
-
-
-class Chosen(unittest.TestCase):
-    """'가장' 은 기준을 받을 수 있고, 없으면 원소 자체가 기준이다."""
-
-    HEAD = ("학생은 이런 것이다:\n    이름은 문자열이다.\n    점수들은 정수들이다.\n"
-            "학생의 평균이라는 것은:\n    학생의 점수들을 모두 더한 값을 "
-            "학생의 점수들의 개수로 나눈 값을 돌려준다.\n"
-            '갑은 이름이 "갑"이고 점수들이 [80, 90]인 학생이다.\n'
-            '둘은 이름이 "둘"이고 점수들이 [95, 99]인 학생이다.\n'
-            "학생들은 [갑, 둘]이다.\n")
-
-    def test_with_a_key(self):
+            run("갑은 {수: 1}이다.\n병은 {수: 1}이다.\n갑이 병과 같은지를 출력한다."), "참")
         self.assertEqual(
-            run(self.HEAD + "학생들 중 평균이 가장 큰 값의 이름을 출력한다."), "둘")
+            run("갑은 {수: 1}이다.\n병은 {수: 2}이다.\n갑이 병과 같은지를 출력한다."), "거짓")
+
+    def test_copy(self):
         self.assertEqual(
-            run(self.HEAD + "학생들 중 평균이 가장 작은 값의 이름을 출력한다."), "갑")
+            run("내것은 {금액: 100}이다.\n새것은 내것의 복사본이다.\n"
+                "새것의 금액은 200이다.\n"
+                '"{새것의 금액} {내것의 금액}"을 출력한다.'), "200 100")
 
-    def test_without_a_key(self):
-        self.assertEqual(run("[3, 9, 1] 중 가장 큰 값을 출력한다."), "9")
+    def test_type_field(self):
+        self.assertEqual(run("갑은 {수: 1}이다.\n갑의 자료형을 출력한다."), "사전")
 
-    def test_a_key_it_cannot_use_is_rejected(self):
-        error = failure("수들은 [1]이다.\n수들 중 가장 100보다 큰 값을 출력한다.")
-        self.assertEqual(error.kind, "구문 오류")
-
-
-class Mapped(unittest.TestCase):
-    """맵의 관형절도 걸러내기처럼 원소의 필드를 읽는다."""
-
-    def test_element_field(self):
+    def test_a_nested_target(self):
         self.assertEqual(
-            run("학생은 이런 것이다:\n    이름은 문자열이다.\n"
-                '갑은 이름이 "갑"인 학생이다.\n둘은 이름이 "둘"인 학생이다.\n'
-                "학생들은 [갑, 둘]이다.\n"
-                '학생들을 각각 이름을 잇는 값들을 출력한다.'), "[갑, 둘]")
+            run("갑들은 [{무게: 1}]이다.\n갑들의 첫째의 무게는 9이다.\n"
+                "갑들의 첫째의 무게를 출력한다."), "9")
+
+    def test_assigning_to_something_that_is_not_a_dict(self):
+        error = failure("목록은 [1]이다.\n목록의 자리는 3이다.\n참")
+        self.assertEqual(error.kind, "실행 오류")
+        self.assertIn("목록", error.message)
+
+    def test_a_key_is_a_bare_name(self):
+        for source in ('갑은 {"이름": 1}이다.\n참', "갑은 {1: 2}이다.\n참"):
+            with self.subTest(source=source):
+                self.assertEqual(failure(source).kind, "구문 오류")
+
+
+class Subjects(unittest.TestCase):
+    """'이/가' 로도 선언한다."""
+
+    def test_declare_with_a_subject(self):
+        self.assertEqual(run("철수가 3이다.\n철수를 출력한다."), "3")
+
+    def test_declare_a_key_with_a_subject(self):
+        self.assertEqual(
+            run("철수는 {나이: 17}이다.\n철수의 나이가 18이다.\n철수의 나이를 출력한다."),
+            "18")
+
+    def test_a_call_is_still_a_call(self):
+        self.assertEqual(run('말은 "안녕"이다.\n말이 "안"을 담는지를 출력한다.'), "참")
 
 
 class PythonValues(unittest.TestCase):
@@ -772,13 +663,20 @@ class PythonValues(unittest.TestCase):
         self.write("짐.py", module)
         return failure(source, path=self.write("주.sr", source))
 
-    def test_a_verb_that_returns_a_dict(self):
+    def test_a_verb_that_returns_a_set(self):
         error = self.fails('from saerom.extension import verb\n\n'
                            '@verb("모으하다", "를")\n'
-                           "def gather(one):\n    return {}\n",
+                           "def gather(one):\n    return set()\n",
                            "짐에서 모으하다를 가져온다.\n[1]을 모으한 값을 출력한다.")
         self.assertEqual(error.kind, "값 오류")
         self.assertIn("새롬 값이 아닌", error.message)
+
+    def test_a_verb_that_returns_a_dict(self):
+        self.write("짐.py", 'from saerom.extension import verb\n\n'
+                            '@verb("모으하다", "를")\n'
+                            "def gather(one):\n    return {\"수\": one}\n")
+        source = "짐에서 모으하다를 가져온다.\n1을 모으한 값을 출력한다."
+        self.assertEqual(run(source, path=self.write("주.sr", source)), "{수: 1}")
 
     def test_values_that_are_not_saerom_values(self):
         error = self.fails('from saerom.extension import verb\n\n'
@@ -797,60 +695,14 @@ class PythonValues(unittest.TestCase):
                          "[[9], [1, 참]]")
 
 
-class Records(unittest.TestCase):
-    def test_assigning_an_undeclared_field_is_rejected(self):
-        error = failure('학생은 이런 것이다:\n    이름은 문자열이다.\n'
-                        '철수는 이름이 "가"인 학생이다.\n철수의 점수는 1이다.')
-        self.assertEqual(error.kind, "이름 오류")
-        self.assertIn("점수", error.message)
-
-    SETUP = ("학생은 이런 것이다:\n    이름은 문자열이다.\n    나이는 정수이다.\n"
-             "철수는 이름이 \"김철수\"이고 나이가 17인 학생이다.\n")
-
-    def test_field_access(self):
-        self.assertEqual(run(self.SETUP + "철수의 이름을 출력한다."), "김철수")
-
-    def test_field_assignment(self):
-        self.assertEqual(run(self.SETUP + "철수의 나이는 18이다.\n철수의 나이를 출력한다."),
-                         "18")
-
-    def test_block_form(self):
-        self.assertEqual(
-            run(self.SETUP + "민수는 이런 학생이다:\n"
-                "    이름은 \"박민수\"이다.\n    나이는 20이다.\n"
-                "민수의 이름을 출력한다."), "박민수")
-
-    def test_attached_verb(self):
-        self.assertEqual(
-            run(self.SETUP + "학생의 소개하다라는 것은:\n"
-                "    \"{학생의 이름}({학생의 나이})\"를 돌려준다.\n"
-                "철수의 소개한 값을 출력한다."), "김철수(17)")
-
-    def test_records_are_equal_by_value(self):
-        source = self.SETUP + '민수는 이름이 "김철수"이고 나이가 17인 학생이다.\n'
-        self.assertEqual(run(source + "철수가 민수와 같은지를 출력한다."), "참")
-        self.assertEqual(
-            run(source + "민수의 나이는 18이다.\n철수가 민수와 같은지를 출력한다."), "거짓")
-
-    def test_filter_reads_fields_of_the_element(self):
-        self.assertEqual(
-            run(self.SETUP + "학생들은 [철수]이다.\n"
-                "나이가 17인 학생들의 개수를 출력한다."), "1")
-
-
 class DerivedFields(unittest.TestCase):
     """계산되는 `X의 Y`."""
 
     AVERAGE = ("수들의 평균이라는 것은:\n"
-               "    수들을 모두 더한 값을 수들의 개수로 나눈 값을 돌려준다.\n")
-
-    SCORES = ("사람은 이런 것이다:\n    점수들은 정수들이다.\n"
-              "수들의 평균이라는 것은:\n"
-              "    수들을 모두 더한 값을 수들의 개수로 나눈 값을 돌려준다.\n"
-              "사람의 평균점수라는 것은:\n    사람의 점수들의 평균을 돌려준다.\n"
-              "철수는 점수들이 [60, 60]인 사람이다.\n"
-              "영희는 점수들이 [90, 90]인 사람이다.\n"
-              "사람들은 [철수, 영희]이다.\n")
+               "    모은것은 0이다.\n"
+               "    1부터 수들의 개수까지의 자리마다 반복한다:\n"
+               "        모은것은 모은것에 수들의 자리번째를 더한 값이다.\n"
+               "    모은것을 수들의 개수로 나눈 값을 돌려준다.\n")
 
     def test_define_and_use(self):
         self.assertEqual(
@@ -872,10 +724,9 @@ class DerivedFields(unittest.TestCase):
         self.assertEqual(error.kind, "값 오류")
         self.assertIn("절반", error.message)
 
-    def test_record_field_comes_first(self):
-        source = ("사람은 이런 것이다:\n    나이는 정수이다.\n"
-                  "사람의 나이라는 것은:\n    99를 돌려준다.\n"
-                  "철수는 나이가 3인 사람이다.\n"
+    def test_dict_key_comes_first(self):
+        source = ("사람의 나이라는 것은:\n    99를 돌려준다.\n"
+                  "철수는 {나이: 3}이다.\n"
                   '"{철수의 나이}"를 출력한다.')
         self.assertEqual(run(source), "3")
 
@@ -884,23 +735,12 @@ class DerivedFields(unittest.TestCase):
                   '"{[1, 2, 3]의 개수}"를 출력한다.')
         self.assertEqual(run(source), "3")
 
-    def test_record_without_the_field_falls_through(self):
-        source = ("사람은 이런 것이다:\n    점수들은 정수들이다.\n"
-                  + self.AVERAGE +
+    def test_dict_without_the_key_falls_through(self):
+        source = (self.AVERAGE +
                   "사람의 평균점수라는 것은:\n    사람의 점수들의 평균을 돌려준다.\n"
-                  "철수는 점수들이 [80, 90, 100]인 사람이다.\n"
+                  "철수는 {점수들: [80, 90, 100]}이다.\n"
                   '"{철수의 평균점수}"를 출력한다.')
         self.assertEqual(run(source), "90")
-
-    def test_inside_an_adnominal_clause(self):
-        source = ("사람은 이런 것이다:\n    이름은 문자열이다.\n    점수들은 정수들이다.\n"
-                  + self.AVERAGE +
-                  "사람의 평균점수라는 것은:\n    사람의 점수들의 평균을 돌려준다.\n"
-                  '철수는 이름이 "철수"이고 점수들이 [60, 60]인 사람이다.\n'
-                  '영희는 이름이 "영희"이고 점수들이 [90, 90]인 사람이다.\n'
-                  "사람들은 [철수, 영희]이다.\n"
-                  '"{평균점수가 큰 순으로 정렬된 사람들의 이름들}"을 출력한다.')
-        self.assertEqual(run(source), "[영희, 철수]")
 
     def test_owner_is_bound_by_name(self):
         self.assertEqual(
@@ -917,58 +757,19 @@ class DerivedFields(unittest.TestCase):
         error = failure("통계를 가져온다.\n[1, 2]의 통계의 평균을 출력한다.")
         self.assertEqual(error.kind, "이름 오류")
 
-    def test_quantifier_keeps_its_own_subject(self):
-        """'~들이 모두' 의 '이'가 관형절 안의 '가' 자리를 먹지 않는다."""
-        self.assertEqual(
-            run(self.SCORES + '"{사람들이 모두 평균점수가 50보다 큰지}"를 출력한다.'),
-            "참")
-        self.assertEqual(
-            run(self.SCORES + '"{사람들이 모두 평균점수가 70보다 큰지}"를 출력한다.'),
-            "거짓")
-        self.assertEqual(
-            run(self.SCORES + '"{사람들 중 하나라도 평균점수가 70보다 큰지}"를 출력한다.'),
-            "참")
-
-    def test_element_does_not_leak_into_a_called_verb(self):
-        """관형절의 원소는 그 절 안에서만 산다. 부른 동사 안까지 따라가지 않는다."""
-        error = failure(self.SCORES +
-                        "사람이 잘한것이다라는 것은:\n    평균점수가 70보다 큰지를 돌려준다.\n"
-                        "잘한것인 사람들의 개수를 출력한다.")
-        self.assertEqual(error.kind, "이름 오류")
-        self.assertIn("평균점수", error.message)
-
 
 class ActiveAndPassive(unittest.TestCase):
-    SAVINGS = ("저금통은 이런 것이다:\n    금액은 정수이다.\n"
-               "저금통에 돈을 저축하다라는 것은:\n"
+    SAVINGS = ("저금통에 돈을 저축하다라는 것은:\n"
                "    저금통의 금액은 저금통의 금액에 돈을 더한 값이다.\n"
                "저금통에 돈이 저축되다라는 것은:\n"
                "    새것은 저금통의 복사본이다.\n"
                "    새것에 돈을 저축한다.\n"
                "    새것을 돌려준다.\n"
-               "내것은 금액이 100인 저금통이다.\n")
+               "내것은 {금액: 100}이다.\n")
 
     def test_active_mutates(self):
         self.assertEqual(
-            run("수들은 [3, 1, 2]이다.\n수들을 정렬한다.\n수들을 출력한다."), "[1, 2, 3]")
-
-    def test_builtin_passive_leaves_the_original(self):
-        self.assertEqual(
-            run("수들은 [3, 1, 2]이다.\n정렬된 수들을 출력한다.\n수들을 출력한다."),
-            "[1, 2, 3][3, 1, 2]")
-
-    def test_sort_by_the_element_itself(self):
-        self.assertEqual(run("수들은 [1, 3, 2]이다.\n큰 순으로 정렬된 수들을 출력한다."),
-                         "[3, 2, 1]")
-        self.assertEqual(run("수들은 [1, 3, 2]이다.\n작은 순으로 정렬된 수들을 출력한다.\n"
-                             "수들을 출력한다."), "[1, 2, 3][1, 3, 2]")
-
-    def test_sort_by_key(self):
-        self.assertEqual(
-            run("학생은 이런 것이다:\n    점수는 정수이다.\n"
-                "낮은학생은 점수가 2인 학생이다.\n높은학생은 점수가 9인 학생이다.\n"
-                "학생들은 [낮은학생, 높은학생]이다.\n"
-                "점수가 큰 순으로 정렬된 학생들의 첫째의 점수를 출력한다."), "9")
+            run("수들은 [1]이다.\n수들에 2를 더한다.\n수들을 출력한다."), "[1, 2]")
 
     def test_user_passive_returns_what_its_body_gives(self):
         self.assertEqual(
@@ -982,10 +783,9 @@ class ActiveAndPassive(unittest.TestCase):
 
     def test_undefined_passive_is_a_name_error(self):
         error = failure(
-            "저금통은 이런 것이다:\n    금액은 정수이다.\n"
             "저금통에 돈을 저축하다라는 것은:\n"
             "    저금통의 금액은 저금통의 금액에 돈을 더한 값이다.\n"
-            "내것은 금액이 100인 저금통이다.\n"
+            "내것은 {금액: 100}이다.\n"
             "50이 저축된 내것의 금액을 출력한다.")
         self.assertEqual(error.kind, "이름 오류")
         self.assertIn("저축되다", error.message)
@@ -997,17 +797,9 @@ class ActiveAndPassive(unittest.TestCase):
                 "새것들에 3을 더한다.\n새것들을 출력한다.\n수들을 출력한다."),
             "[1, 2, 3][1, 2]")
 
-    def test_copy_of_a_record(self):
-        self.assertEqual(
-            run("저금통은 이런 것이다:\n    금액은 정수이다.\n"
-                "내것은 금액이 100인 저금통이다.\n"
-                "새것은 내것의 복사본이다.\n새것의 금액은 200이다.\n"
-                "새것의 금액을 출력한다.\n내것의 금액을 출력한다."), "200100")
-
     def test_copy_reaches_into_nested_values(self):
         self.assertEqual(
-            run("가방은 이런 것이다:\n    수들은 정수들이다.\n"
-                "내것은 수들이 [1, 2]인 가방이다.\n"
+            run("내것은 {수들: [1, 2]}이다.\n"
                 "새것은 내것의 복사본이다.\n새것의 수들에 3을 더한다.\n"
                 "새것의 수들을 출력한다.\n내것의 수들을 출력한다."),
             "[1, 2, 3][1, 2]")
@@ -1082,10 +874,8 @@ class Conversion(unittest.TestCase):
             with self.subTest(value=value):
                 self.assertEqual(run(f"{value}의 자료형을 출력한다."), wanted)
 
-    def test_type_of_a_record(self):
-        self.assertEqual(
-            run("학생은 이런 것이다:\n    이름은 문자열이다.\n"
-                '철수는 이름이 "가"인 학생이다.\n철수의 자료형을 출력한다.'), "학생")
+    def test_type_of_a_dict(self):
+        self.assertEqual(run('철수는 {이름: "가"}이다.\n철수의 자료형을 출력한다.'), "사전")
 
     def test_type_compares_with_the_type_name(self):
         self.assertEqual(
@@ -1166,9 +956,8 @@ class Errors(unittest.TestCase):
         self.assertEqual(error.kind, "조사 오류")
         self.assertIn("~에 ~를 더한다", error.hint)
 
-    def test_missing_field_lists_the_fields(self):
-        error = failure("학생은 이런 것이다:\n    이름은 문자열이다.\n"
-                        '철수는 이름이 "가"인 학생이다.\n철수의 점수를 출력한다.')
+    def test_missing_key_lists_the_keys(self):
+        error = failure('철수는 {이름: "가"}이다.\n철수의 점수를 출력한다.')
         self.assertEqual(error.kind, "이름 오류")
         self.assertIn("이름", error.hint)
 
@@ -1197,59 +986,65 @@ class Errors(unittest.TestCase):
         self.assertIn("짝수이다", shown)
         self.assertNotIn("짝수인다", shown)
 
-    def test_select_rejects_slots_it_cannot_use(self):
-        """'가장'은 견줌 하나만 쓴다. 남는 구절을 말없이 버리지 않는다."""
-        error = failure("수들은 [1, 5, 3]이다.\n"
-                        "수들 중 가장 100보다 큰 값을 출력한다.")
-        self.assertEqual(error.kind, "구문 오류")
-        self.assertIn("보다", error.message)
-
-    def test_quantifier_needs_a_source(self):
-        self.assertEqual(failure("수들은 [1]이다.\n"
-                                 "수들 중 모두 큰지를 출력한다.").kind, "구문 오류")
-
     def test_builtin_given_the_wrong_kind(self):
         """내장이 파이썬 오류를 내도 새롬 오류로 나와야 한다."""
         error = failure("목록은 [1]이다.\n목록에서 목록을 뺀 값을 출력한다.")
         self.assertEqual(error.kind, "값 오류")
         self.assertIn("빼다", error.message)
 
-    def test_collection_adverbs_need_a_list(self):
-        for expression in ("수를 모두 더한 값", "수 중 가장 큰 값",
-                           "수를 각각 배한 값들", "수가 모두 좋은것인지"):
-            with self.subTest(expression=expression):
-                error = failure("수는 5이다.\n"
-                                "수를 배하다라는 것은:\n    수에 2를 곱한 값을 돌려준다.\n"
-                                "수가 좋은것이다라는 것은:\n    참을 돌려준다.\n"
-                                f"{expression}을 출력한다.")
-                self.assertEqual(error.kind, "실행 오류")
-                self.assertIn("목록이 아님", error.message)
-
-    def test_loop_over_something_that_is_not_a_list(self):
-        error = failure("수는 3이다.\n수마다 반복한다:\n    참")
-        self.assertEqual(error.kind, "실행 오류")
-        self.assertEqual(error.line, 2)
+    def test_a_loop_needs_a_range(self):
+        error = failure("수들은 [1]이다.\n수들마다 반복한다:\n    참")
+        self.assertEqual(error.kind, "구문 오류")
+        self.assertIn("범위", error.message)
 
     def test_range_with_a_step_that_is_not_a_number(self):
-        error = failure('1부터 3까지 "가" 간격의 수들마다 반복한다:\n    참')
+        error = failure('1부터 3까지 "가" 간격의 수마다 반복한다:\n    참')
         self.assertEqual(error.kind, "값 오류")
         self.assertEqual(error.line, 1)
-
-    def test_field_on_something_that_is_not_a_record(self):
-        error = failure("목록은 [1]이다.\n목록의 자리는 3이다.\n참")
-        self.assertEqual(error.kind, "실행 오류")
-        self.assertIn("목록", error.message)
 
     def test_return_outside_a_definition(self):
         error = failure("1을 돌려준다.")
         self.assertEqual(error.kind, "실행 오류")
         self.assertIn("돌려주다", error.message)
-        self.assertEqual(failure("1부터 2까지의 수들마다 반복한다:\n"
+        self.assertEqual(failure("1부터 2까지의 수마다 반복한다:\n"
                                  "    수를 돌려준다.").kind, "실행 오류")
 
     def test_position_is_recorded(self):
         error = failure("1을 출력한다.\n없는이름을 출력한다.")
         self.assertEqual((error.line, error.col, error.end), (2, 0, 4))
+
+
+class Gone(unittest.TestCase):
+    """지운 꼴은 분명한 오류가 되어야 한다."""
+
+    def test_list_loop(self):
+        error = failure("수들은 [1]이다.\n수들마다 반복한다:\n    참")
+        self.assertEqual(error.kind, "구문 오류")
+
+    def test_record_declaration(self):
+        self.assertEqual(
+            failure("학생은 이런 것이다:\n    이름은 문자열이다.\n참").kind, "구문 오류")
+
+    def test_empty_list_keyword(self):
+        self.assertEqual(failure("빈것은 빈목록이다.\n참").kind, "이름 오류")
+
+    def test_filter(self):
+        self.assertEqual(
+            failure("수학에서 짝수이다를 가져온다.\n수들은 [1]이다.\n"
+                    "짝수인 수들을 출력한다.").kind, "구문 오류")
+
+    def test_collection_adverbs(self):
+        """모두·각각·가장·하나라도는 이제 그저 이름이다."""
+        for source in ("수들을 모두 더한 값을 출력한다.",
+                       "수들 중 가장 큰 값을 출력한다.",
+                       "수들을 각각 늘린 값을 출력한다."):
+            with self.subTest(source=source):
+                self.assertEqual(failure("수들은 [1, 2]이다.\n" + source).kind,
+                                 "이름 오류")
+
+    def test_sorting(self):
+        self.assertEqual(failure("수들은 [3, 1]이다.\n수들을 정렬한다.").kind, "이름 오류")
+
 
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@ import unicodedata
 from .hangul import decompose, conjugate, allomorph
 
 PARTICLE_ORDER = ["가", "의", "에서", "에게", "에", "를", "로", "보다", "와",
-                  "부터", "까지", "만큼", "중", "마다"]
+                  "부터", "까지", "만큼", "마다"]
 
 ENDING_NAMES = {
     "final": "-ㄴ다", "adnominal_past": "-ㄴ", "adnominal_pres": "-는",

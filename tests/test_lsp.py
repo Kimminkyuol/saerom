@@ -6,13 +6,10 @@ from saerom.lsp.analysis import Analysis, TOKEN_TYPES
 from saerom.lsp.protocol import Connection
 from saerom.lsp.server import Server
 
-SOURCE = ('학생은 이런 것이다:\n'
-          '    이름은 문자열이다.\n'
-          '\n'
-          '학생의 소개하다라는 것은:\n'
+SOURCE = ('학생의 소개하다라는 것은:\n'
           '    학생의 이름을 돌려준다.  # 주석\n'
           '\n'
-          '철수는 이름이 "김철수"인 학생이다.\n'
+          '철수는 {이름: "김철수"}이다.\n'
           '"{철수의 소개한 값}"을 출력한다.\n')
 
 
@@ -101,14 +98,13 @@ class Session(unittest.TestCase):
         self.assertEqual(replies[-1]["result"], [])
 
     def test_hover_on_a_verb_lists_signatures(self):
-        params = dict(DOC, position={"line": 4, "character": 12})
+        params = dict(DOC, position={"line": 1, "character": 12})
         replies = talk(open_document() + [request("textDocument/hover", params)])
         self.assertIn("돌려주다", replies[-1]["result"]["contents"]["value"])
 
     def test_document_symbols(self):
         replies = talk(open_document() + [request("textDocument/documentSymbol", DOC)])
         names = [symbol["name"] for symbol in replies[-1]["result"]]
-        self.assertIn("학생", names)
         self.assertIn("소개하다", names)
         self.assertIn("철수", names)
 
@@ -194,7 +190,7 @@ class Completion(unittest.TestCase):
         self.assertNotIn("파일으로", labels)
 
     def test_offers_derived_fields(self):
-        text = "수들의 평균이라는 것은:\n    수들을 모두 더한 값이다.\n\n"
+        text = "수들의 평균이라는 것은:\n    수들의 개수이다.\n\n"
         items = self.items(text + "\n", 3, 0)
         found = [i for i in items if i["label"] == "평균"]
         self.assertEqual([i["detail"] for i in found], ["파생 필드"])
@@ -205,7 +201,7 @@ class Completion(unittest.TestCase):
         self.assertEqual([i["detail"] for i in found], ["~를 뒤집는다"])
 
     def test_offers_declared_names_and_verbs(self):
-        labels = [i["label"] for i in self.items(SOURCE + "\n", 8, 0)]
+        labels = [i["label"] for i in self.items(SOURCE + "\n", 5, 0)]
         self.assertIn("철수", labels)
         self.assertIn("소개하다", labels)
         self.assertIn("출력하다", labels)

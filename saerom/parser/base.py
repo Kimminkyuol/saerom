@@ -17,13 +17,12 @@ class ParserBase:
         "name": "이름", "number": "수", "string": "글", "template": "글",
         "particle": "조사", "verb": "동사", "copula": "'이다'", "symbol": "기호",
         "keyword": "예약어", "newline": "줄 끝", "indent": "들여쓰기",
-        "dedent": "내어쓰기", "eof": "파일 끝", "adverb": "부사",
+        "dedent": "내어쓰기", "eof": "파일 끝",
     }
 
     def __init__(self, tokens):
         self.tokens = tokens
         self.pos = 0
-        self.types = set()
         self.signatures = {name: [ordered(sig) for sig in sigs]
                            for name, sigs in BUILTIN_SIGNATURES.items()}
         self.known = frozenset()

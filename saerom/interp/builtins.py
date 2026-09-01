@@ -3,12 +3,12 @@ import os
 import sys
 
 from ..errors import ArithmeticError_, Raised, ValueError_
-from .values import (Handle, SortKey, check_numbers, show, signature_of,
-                     to_text, truthy)
+from .values import (Handle, check_numbers, show, signature_of, to_text,
+                     truthy)
 
 
 # 능동으로 부르면 고쳐지는 조사 자리. 값 자리에서 부르면 복사해서 넘긴다.
-CHANGES = {"더하다": "에", "정렬하다": "를"}
+CHANGES = {"더하다": "에"}
 
 
 def build(interp):
@@ -66,31 +66,6 @@ def build(interp):
             return a["를"] in whole
         return to_text(a["를"]) in to_text(whole)
 
-
-    def sort_in_place(a):
-        target = a["를"]
-        if not isinstance(target, list):
-            raise ValueError_("'정렬하다'의 인자가 목록이 아님")
-        spec = a.get("로")
-        if isinstance(spec, SortKey):
-            target.sort(key=lambda item: sort_key(spec.of(item)),
-                        reverse=spec.descending)
-        else:
-            target.sort(key=sort_key)
-        return target
-
-    def sorted_copy(a):
-        target = a["가"]
-        if not isinstance(target, list):
-            raise ValueError_("'정렬되다'의 인자가 목록이 아님")
-        spec = a.get("로")
-        if isinstance(spec, SortKey):
-            return sorted(target, key=lambda item: sort_key(spec.of(item)),
-                          reverse=spec.descending)
-        return sorted(target, key=sort_key)
-
-    def sort_key(value):
-        return (0, value, "") if isinstance(value, (int, float)) else (1, 0, to_text(value))
 
     def append(a):
         target = a["에"]
@@ -175,10 +150,6 @@ def build(interp):
         ("끝나다", signature_of(["가", "로"])): lambda a: to_text(a["가"]).endswith(to_text(a["로"])),
         ("다듬다", signature_of(["를"])): lambda a: to_text(a["를"]).strip(),
         ("자르다", signature_of(["를", "로"])): split_text,
-        ("정렬하다", signature_of(["를"])): sort_in_place,
-        ("정렬하다", signature_of(["를", "로"])): sort_in_place,
-        ("정렬되다", signature_of(["가"])): sorted_copy,
-        ("정렬되다", signature_of(["가", "로"])): sorted_copy,
         ("읽다", signature_of(["를"])): read_file,
         ("입력받다", signature_of([])): read_line,
         ("열다", signature_of(["를"])): open_file,

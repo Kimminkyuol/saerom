@@ -6,7 +6,7 @@ from ..words import COMPARATIVES
 
 TOKEN_TYPES = ["namespace", "type", "function", "variable", "property",
                "keyword", "string", "number", "comment", "operator",
-               "particle", "ending", "adverb", "embedded"]
+               "particle", "ending", "embedded"]
 
 TOKEN_MODIFIERS = ["declaration", "definition"]
 
@@ -18,7 +18,6 @@ KIND_TO_TYPE = {
     "copula": "ending",
     "particle": "particle",
     "keyword": "keyword",
-    "adverb": "adverb",
     "string": "string",
     "template": "string",
     "number": "number",
@@ -52,7 +51,7 @@ class TokenMixin:
             return "function"
         return name_role(self.tokens[index],
                          self.tokens[index - 1] if index else None,
-                         self.modules, self.types)
+                         self.modules)
 
     def _template_spans(self, token):
         """A string keeps its colour, but the {...} inside is real code.
@@ -98,7 +97,7 @@ class TokenMixin:
                 continue
             if name == "variable":
                 name = name_role(piece, pieces[index - 1] if index else None,
-                                 self.modules, self.types)
+                                 self.modules)
             spans.append((line, offset + piece.col, piece.end - piece.col, name))
         return spans
 
@@ -123,14 +122,12 @@ def heads_a_definition(tokens, index):
             and colon.kind == "symbol" and colon.value == ":")
 
 
-def name_role(token, previous, modules, types):
+def name_role(token, previous, modules):
     """이름 하나가 무엇을 가리키는가."""
     if token.value in COMPARATIVES:
         return "operator"
     if token.value in modules:
         return "namespace"
-    if token.value in types:
-        return "type"
     if previous is not None and previous.kind == "particle" and previous.value == "의":
         return "property"
     return "variable"

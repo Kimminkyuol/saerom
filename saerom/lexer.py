@@ -5,7 +5,7 @@ from collections import namedtuple
 
 from .hangul import is_syllable
 from .words import (PARTICLES, PARTICLES_BY_LENGTH, COMPARATIVES, COPULA,
-                    COPULA_BY_LENGTH, VERB_FORMS, KEYWORDS, ADVERBS, HADA_FORMS,
+                    COPULA_BY_LENGTH, VERB_FORMS, KEYWORDS, HADA_FORMS,
                     HADA_BY_LENGTH, DOEDA_FORMS, DOEDA_BY_LENGTH, stem_forms)
 
 
@@ -50,9 +50,6 @@ def split_word(chunk, line, col, end=None, allow_particle=True,
 
     if chunk in KEYWORDS:
         return [Token("keyword", chunk, line, col, end=end)]
-
-    if chunk in ADVERBS:
-        return [Token("adverb", chunk, line, col, end=end)]
 
     if chunk in known or chunk in COMPARATIVES:
         return [Token("name", chunk, line, col, end=end)]
@@ -112,6 +109,15 @@ def split_word(chunk, line, col, end=None, allow_particle=True,
     return [Token("name", chunk, line, col, end=end)]
 
 
+def is_key(produced, brackets, text, stop):
+    """사전 리터럴의 열쇠 자리인가. 그 자리의 이름에서는 조사를 떼지 않는다.
+    그러지 않으면 '{나이: 17}'의 나이가 나 + 이로 갈라진다."""
+    return (bool(brackets) and brackets[-1] == "{"
+            and bool(produced) and produced[-1].kind == "symbol"
+            and produced[-1].value in "{,"
+            and text[stop:stop + 1] == ":")
+
+
 def copula_suffix(chunk, known):
     """어절 끝에서 뗄 '이다'의 꼴. 몸통이 선언된 이름이면 그 꼴을 고른다.
 
@@ -138,6 +144,7 @@ def tokenize(source, known=None, stems=frozenset(), base_dir=None):
     lines = source.split("\n")
     tokens = []
     indents = [0]
+    brackets = []
     at_statement_start = True
 
     for lineno, text in enumerate(lines, 1):
@@ -214,7 +221,11 @@ def tokenize(source, known=None, stems=frozenset(), base_dir=None):
                                       lineno, i, end=j))
                 i = j
                 continue
-            if ch in "[],:.":
+            if ch in "[],:.{}":
+                if ch in "[{":
+                    brackets.append(ch)
+                elif ch in "]}" and brackets:
+                    brackets.pop()
                 produced.append(Token("symbol", ch, lineno, i, end=i + 1))
                 i += 1
                 continue
@@ -225,7 +236,9 @@ def tokenize(source, known=None, stems=frozenset(), base_dir=None):
                                   and j + 1 < n and text[j + 1].isdigit())):
                     j += 1
                 produced += split_word(text[i:j], lineno, i, j, known=known,
-                                       forms=forms)
+                                       forms=forms,
+                                       allow_particle=not is_key(produced, brackets,
+                                                                 text, j))
                 i = j
                 continue
             raise LexError(f"쓸 수 없는 글자: {ch!r}", lineno, i, i + 1)
@@ -263,7 +276,7 @@ def prescan(source, base_dir=None, chain=None):
 
 
 def declared_names(tokens):
-    """어딘가에서 조사를 달고 나온 것, 그리고 '~들마다'가 도는 목록의 원소가 이름이다.
+    """어딘가에서 조사를 달고 나온 것, 사전의 열쇠로 적힌 것이 이름이다.
 
     '크기는' 처럼 명사형 활용형에 조사가 바로 붙은 어절도 이름으로 센다. 그러지
     않으면 크기·보기·나누기가 내장 용언의 명사형에 가려 이름이 되지 못한다.
@@ -271,12 +284,14 @@ def declared_names(tokens):
     names = set()
     for index, token in enumerate(tokens):
         following = tokens[index + 1] if index + 1 < len(tokens) else None
-        if following is None or following.kind != "particle":
+        if following is None or token.kind != "name":
             continue
-        if token.kind == "name":
+        if following.kind == "particle":
             names.add(token.value)
-            if token.value.endswith("들"):
-                names.add(token.value[:-1])
+        elif (following.kind == "symbol" and following.value == ":"
+              and index and tokens[index - 1].kind == "symbol"
+              and tokens[index - 1].value in "{,"):
+            names.add(token.value)
     return frozenset(names)
 
 
